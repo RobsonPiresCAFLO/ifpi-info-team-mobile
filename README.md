@@ -13,3 +13,10 @@ Esta é a **versão 3**, que se adapta à tela vertical do celular: com o aparel
 Dica: para ver o layout vertical no computador, abra o jogo com `?modo=retrato` no endereço.
 
 Feito com HTML5 Canvas e JavaScript puro, sem bibliotecas.
+
+## Licença
+
+© 2026 Prof. Me. Robson Pires Borges. Todos os direitos reservados.
+Inspirado no quadro de professores do curso de TADS do IFPI Campus Floriano (2026).
+
+É livre o uso para jogar, executar e apresentar o jogo, mantendo os créditos. Modificações, adaptações e obras derivadas dependem de autorização prévia e expressa do autor (Lei nº 9.609/1998, Lei nº 9.610/1998 e Constituição Federal, art. 5º, XXVII). Veja o arquivo [LICENSE](LICENSE).
