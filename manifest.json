@@ -1,0 +1,16 @@
+{
+  "name": "IFPI Floriano Info Team",
+  "short_name": "Info Team",
+  "description": "Jogo arcade do quadro de professores de Informática do IFPI Campus Floriano",
+  "lang": "pt-BR",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#07071a",
+  "theme_color": "#1a1045",
+  "icons": [
+    { "src": "icones/icone-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icones/icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

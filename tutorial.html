@@ -948,6 +948,7 @@ addEventListener('resize', redimensionar);        // também dispara ao girar o 
             <figure class="captura"><img src="assets/tutorial/vertical-jogo.jpg" alt="Jogo na vertical com botões de toque" loading="lazy"><figcaption>Jogo com botões abaixo do chão</figcaption></figure>
           </div>
           <div class="dica"><strong>Girou no meio da partida?</strong> A função <code>aoGirar()</code> converte a posição do professor e dos balões para a nova escala, e o jogo continua de onde parou. Para testar no computador, abra o jogo com <code>?modo=retrato</code> no endereço.</div>
+          <div class="atencao"><strong>Tela cheia no celular:</strong> por segurança, o navegador só deixa uma página entrar em tela cheia depois de um toque do usuário. Por isso o jogo chama <code>requestFullscreen()</code> no primeiro toque ("TOQUE PARA JOGAR"). O iPhone não oferece tela cheia em páginas; lá, a solução é o <code>manifest.json</code> com <code>"display": "fullscreen"</code>: pelo menu do navegador, "Adicionar à Tela de Início" instala o jogo como app, com ícone próprio e sem barra do navegador.</div>
         </div>
 
         <!-- 15 -->

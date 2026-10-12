@@ -2,3 +2,4 @@
 /scene/
 *.pdf
 *.png
+!/icones/*.png

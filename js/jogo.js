@@ -10,7 +10,7 @@ let W = 1280, H = 720;
 let CHAO = 640;                    // linha do chão onde o professor pisa
 let retrato = false;               // true = tela vertical
 const escalaJogador = () => (retrato ? 1.3 : 1);   // personagem maior na vertical
-const tamItem = () => (retrato ? 24 : 18);         // texto dos balões que caem
+const tamItem = () => (retrato ? 20 : 18);         // texto dos balões que caem
 const MODO_FORCADO = new URLSearchParams(location.search).get('modo');   // ?modo=retrato ou ?modo=paisagem
 const TEMPO_FASE = 60;             // segundos por fase
 const FONTE_TITULO = 'Bangers, Impact, sans-serif';
@@ -111,9 +111,22 @@ function paraCanvas(e) {
   const r = canvas.getBoundingClientRect();
   return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height };
 }
+// Tela cheia: o navegador só permite entrar depois de um toque/clique do usuário.
+// No celular, o primeiro toque fora da partida já esconde a barra do navegador.
+function pedirTelaCheia() {
+  const el = document.documentElement;
+  const pedir = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (!pedir || document.fullscreenElement || document.webkitFullscreenElement) return;
+  try {
+    const r = pedir.call(el, { navigationUI: 'hide' });
+    if (r && r.catch) r.catch(() => {});        // negado (ex.: iPhone): segue sem tela cheia
+  } catch { /* sem suporte */ }
+}
+
 canvas.addEventListener('pointerdown', (e) => {
   const p = paraCanvas(e);
   modoToque = e.pointerType === 'touch';
+  if (modoToque && tela !== 'jogando') pedirTelaCheia();
   ponteiros.set(e.pointerId, p);
   cliques.push(p);
   Som.destravar();
