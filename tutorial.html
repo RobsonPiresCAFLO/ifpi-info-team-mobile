@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tutorial IFPI Floriano Info Team</title>
+  <meta name="description" content="Passo a passo de como o jogo arcade IFPI Floriano Info Team foi construído com HTML5 Canvas, JavaScript puro, Web Audio e IA para as imagens.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=M+PLUS+Rounded+1c:wght@400;500;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+  <script>
+    (() => {
+      let tema = null;
+      try { tema = localStorage.getItem('ifpi-tutorial-tema'); } catch { /* sem storage */ }
+      if (tema === 'light' || tema === 'dark') document.documentElement.dataset.theme = tema;
+    })();
+  </script>
+  <style>
+    :root {
+      --fundo: #120b2e;
+      --fundo-2: #1b1242;
+      --cartao: #211650;
+      --cartao-borda: #3a2b7a;
+      --texto: #ece8ff;
+      --texto-suave: #b9b1e0;
+      --amarelo: #ffd166;
+      --rosa: #ff3d7f;
+      --verde: #7dffb3;
+      --azul: #7dd3fc;
+      --vermelho: #ff5c7a;
+      --codigo: #0f0a24;
+      --raio: 16px;
+      --largura: 1180px;
+      --titulo: #ffffff;
+      --destaque: #ffd166;
+      --link: #7dd3fc;
+      --sombra-titulo: #1a0b3b;
+      --topo: rgba(18, 11, 46, 0.88);
+      --chip: #2c2066;
+      --chip-texto: #ffe3a3;
+      --hover: rgba(255, 255, 255, 0.04);
+      --heroi: radial-gradient(ellipse at 70% 20%, rgba(255, 61, 127, 0.25), transparent 60%),
+               radial-gradient(ellipse at 10% 80%, rgba(74, 222, 128, 0.12), transparent 50%),
+               linear-gradient(180deg, #1a1045, #120b2e);
+      --h1: linear-gradient(180deg, #fff6a8, #ffb703 50%, #ff5d8f);
+      --verde-texto: #7dffb3;
+      --rosa-texto: #ffb3c8;
+      --azul-texto: #7dd3fc;
+      --painel-escuro: #1b1242;
+      --painel-escuro-borda: #3a2b7a;
+      --painel-escuro-texto: #b9b1e0;
+      color-scheme: dark;
+    }
+    /* Tema claro: segue o sistema, a menos que o visitante escolha o escuro no botão */
+    @media (prefers-color-scheme: light) {
+      :root:not([data-theme="dark"]) {
+        --fundo: #fbf8ff; --fundo-2: #f3edff; --cartao: #ffffff; --cartao-borda: #e2d9f7;
+        --texto: #241a45; --texto-suave: #5d5285; --amarelo: #b45309; --titulo: #1a1040;
+        --destaque: #b45309; --link: #0369a1; --sombra-titulo: transparent; --topo: rgba(251, 248, 255, 0.9);
+        --chip: #f1eafe; --chip-texto: #7c2d12; --hover: rgba(58, 12, 163, 0.05);
+        --heroi: radial-gradient(ellipse at 70% 20%, rgba(255, 61, 127, 0.14), transparent 60%),
+                 radial-gradient(ellipse at 10% 80%, rgba(74, 222, 128, 0.12), transparent 50%),
+                 linear-gradient(180deg, #f1e9ff, #fbf8ff);
+        --h1: linear-gradient(180deg, #f59e0b, #e11d74 70%);
+        --verde-texto: #047857; --rosa-texto: #be185d; --azul-texto: #0369a1;
+        color-scheme: light;
+      }
+    }
+    :root[data-theme="light"] {
+      --fundo: #fbf8ff; --fundo-2: #f3edff; --cartao: #ffffff; --cartao-borda: #e2d9f7;
+      --texto: #241a45; --texto-suave: #5d5285; --amarelo: #b45309; --titulo: #1a1040;
+      --destaque: #b45309; --link: #0369a1; --sombra-titulo: transparent; --topo: rgba(251, 248, 255, 0.9);
+      --chip: #f1eafe; --chip-texto: #7c2d12; --hover: rgba(58, 12, 163, 0.05);
+      --heroi: radial-gradient(ellipse at 70% 20%, rgba(255, 61, 127, 0.14), transparent 60%),
+               radial-gradient(ellipse at 10% 80%, rgba(74, 222, 128, 0.12), transparent 50%),
+               linear-gradient(180deg, #f1e9ff, #fbf8ff);
+      --h1: linear-gradient(180deg, #f59e0b, #e11d74 70%);
+      --verde-texto: #047857; --rosa-texto: #be185d; --azul-texto: #0369a1;
+      color-scheme: light;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 80px; }
+    body {
+      margin: 0;
+      background: var(--fundo);
+      color: var(--texto);
+      font: 400 17px/1.7 "M PLUS Rounded 1c", system-ui, sans-serif;
+    }
+    a { color: var(--link); }
+    body, .cartao, .barra-topo, .tabela { transition: background-color .25s, color .25s, border-color .25s; }
+    img { max-width: 100%; display: block; }
+    h1, h2, h3 { font-family: Bangers, Impact, sans-serif; letter-spacing: 0.02em; font-weight: 400; line-height: 1.1; }
+    h2 { font-size: clamp(34px, 5vw, 48px); color: var(--amarelo); margin: 0 0 12px; text-shadow: 3px 3px 0 var(--sombra-titulo); }
+    h3 { font-size: 28px; color: var(--titulo); margin: 32px 0 8px; }
+    p { margin: 0 0 14px; }
+    code:not(pre code) {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 0.88em;
+      background: var(--chip);
+      padding: 2px 6px;
+      border-radius: 6px;
+      color: var(--chip-texto);
+    }
+
+    /* ---------- Topo ---------- */
+    .barra-topo {
+      position: sticky; top: 0; z-index: 20;
+      display: flex; align-items: center; gap: 16px;
+      padding: 10px 20px;
+      background: var(--topo);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--cartao-borda);
+    }
+    .barra-topo .marca { font-family: Bangers, sans-serif; font-size: 26px; color: var(--amarelo); text-decoration: none; }
+    .barra-topo .marca span { color: #4ade80; }
+    .barra-topo .acoes { margin-left: auto; display: flex; gap: 10px; }
+    .botao {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 20px; border-radius: 999px;
+      font: 400 20px Bangers, sans-serif; letter-spacing: 0.04em;
+      text-decoration: none; color: #fff;
+      background: linear-gradient(180deg, var(--rosa), #7a1fa2);
+      border: 2px solid #fff;
+      box-shadow: 0 0 18px rgba(255, 61, 127, 0.45);
+      transition: transform .15s;
+    }
+    .botao:hover { transform: translateY(-2px); }
+    .botao.secundario { background: transparent; border-color: var(--cartao-borda); box-shadow: none; color: var(--titulo); }
+    .alternar-tema { width: 46px; height: 46px; border-radius: 50%; border: 2px solid var(--cartao-borda); background: var(--cartao); color: var(--titulo); font-size: 20px; cursor: pointer; display: grid; place-items: center; }
+    .alternar-tema:hover { border-color: var(--rosa); }
+    .alternar-tema .sol { display: none; }
+    .tema-claro .alternar-tema .sol { display: inline; }
+    .tema-claro .alternar-tema .lua { display: none; }
+    .creditos-topo { margin-top: 18px; font-size: 15px; color: var(--texto-suave); }
+    .creditos-topo strong { color: var(--titulo); }
+    .creditos { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 28px; margin-bottom: 14px; }
+    .creditos div { background: var(--cartao); border: 1px solid var(--cartao-borda); border-radius: 12px; padding: 10px 18px; }
+    .creditos span { display: block; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--rosa-texto); }
+    .creditos strong { color: var(--titulo); font-size: 16px; }
+
+    .heroi {
+      position: relative; overflow: hidden;
+      padding: 72px 20px 56px;
+      background:
+        var(--heroi);
+    }
+    .heroi-conteudo { max-width: var(--largura); margin: 0 auto; display: grid; grid-template-columns: 1.05fr 1fr; gap: 48px; align-items: center; }
+    .heroi .selo { display: inline-block; padding: 4px 14px; border-radius: 999px; background: var(--chip); color: var(--verde-texto); font-weight: 800; font-size: 14px; letter-spacing: .06em; }
+    .heroi h1 {
+      font-size: clamp(52px, 8vw, 96px); margin: 12px 0 8px;
+      background: var(--h1);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+      filter: drop-shadow(4px 4px 0 var(--sombra-titulo));
+    }
+    .heroi p.lead { font-size: 20px; color: var(--texto-suave); max-width: 560px; }
+    .heroi .acoes { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 24px; }
+    .heroi figure { margin: 0; transform: rotate(1.5deg); }
+    .heroi figure img { border-radius: var(--raio); border: 4px solid #fff; box-shadow: 0 20px 60px rgba(0,0,0,.5), 0 0 40px rgba(255,61,127,.3); }
+    .numeros { display: flex; gap: 28px; flex-wrap: wrap; margin-top: 28px; }
+    .numeros div { font-size: 14px; color: var(--texto-suave); }
+    .numeros strong { display: block; font: 400 38px Bangers, sans-serif; color: var(--titulo); letter-spacing: .03em; }
+
+    /* ---------- Layout com sumário ---------- */
+    .pagina { max-width: var(--largura); margin: 0 auto; padding: 0 20px 80px; display: grid; grid-template-columns: 240px 1fr; gap: 48px; }
+    nav.sumario { position: sticky; top: 80px; align-self: start; max-height: calc(100vh - 100px); overflow: auto; padding-top: 40px; scrollbar-width: thin; scrollbar-color: var(--cartao-borda) transparent; }
+    nav.sumario strong { font: 400 22px Bangers, sans-serif; color: var(--destaque); letter-spacing: .04em; }
+    nav.sumario ol { list-style: none; padding: 0; margin: 10px 0 0; counter-reset: s; }
+    nav.sumario li a {
+      display: block; padding: 5px 10px; border-left: 3px solid transparent;
+      color: var(--texto-suave); text-decoration: none; font-size: 15px;
+    }
+    nav.sumario li a:hover, nav.sumario li a.ativo { color: var(--titulo); border-left-color: var(--rosa); background: var(--hover); }
+    nav.sumario .sub a { padding-left: 22px; font-size: 14px; }
+    main { min-width: 0; }
+    section { padding-top: 56px; }
+    section > p, section > ul, section > ol { max-width: 760px; }
+
+    .cartao { background: var(--cartao); border: 1px solid var(--cartao-borda); border-radius: var(--raio); padding: 22px 24px; }
+    .grade { display: grid; gap: 16px; }
+    .grade.g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grade.g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .tec h4 { margin: 8px 0 6px; font-size: 19px; color: var(--titulo); }
+    .tec p { font-size: 15px; color: var(--texto-suave); margin: 0; }
+    .tec .icone { font-size: 30px; }
+    .etiqueta { display: inline-block; font-size: 12px; font-weight: 800; letter-spacing: .05em; padding: 2px 10px; border-radius: 999px; background: rgba(125,255,179,.14); color: var(--verde-texto); border: 1px solid rgba(16,163,90,.4); }
+    .etiqueta.rosa { background: rgba(255,61,127,.14); color: var(--rosa-texto); border-color: rgba(255,61,127,.4); }
+    .etiqueta.azul { background: rgba(125,211,252,.12); color: var(--azul-texto); border-color: rgba(125,211,252,.4); }
+
+    table { width: 100%; border-collapse: collapse; font-size: 15px; }
+    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--cartao-borda); vertical-align: top; }
+    th { color: var(--destaque); font-weight: 800; }
+    .tabela { overflow-x: auto; background: var(--cartao); border: 1px solid var(--cartao-borda); border-radius: var(--raio); }
+
+    /* ---------- Passos ---------- */
+    .passo { position: relative; margin-top: 40px; padding-left: 72px; }
+    .passo::before {
+      counter-increment: passo; content: counter(passo);
+      position: absolute; left: 0; top: -4px;
+      width: 52px; height: 52px; border-radius: 50%;
+      display: grid; place-items: center;
+      font: 400 28px Bangers, sans-serif; color: #1a0b3b;
+      background: linear-gradient(180deg, #fff27a, #ffb703);
+      border: 3px solid #fff; box-shadow: 0 0 16px rgba(255,209,102,.4);
+    }
+    .passos { counter-reset: passo; }
+    .passo h3 { margin-top: 0; }
+    .passo .arquivo { font-family: "JetBrains Mono", monospace; font-size: 13px; color: var(--texto-suave); }
+
+    .bloco-codigo { position: relative; margin: 14px 0 18px; border-radius: 12px; overflow: hidden; border: 1px solid var(--painel-escuro-borda); background: var(--codigo); }
+    .bloco-codigo .cab { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: #1a1240; font: 600 12px "JetBrains Mono", monospace; color: var(--painel-escuro-texto); }
+    .bloco-codigo button { font: 600 12px "JetBrains Mono", monospace; background: #2c2066; color: #fff; border: 1px solid var(--painel-escuro-borda); border-radius: 6px; padding: 3px 10px; cursor: pointer; }
+    .bloco-codigo pre { margin: 0; overflow-x: auto; }
+    .bloco-codigo pre code.hljs { background: transparent; padding: 14px 16px; font: 400 13.5px/1.6 "JetBrains Mono", monospace; font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0; }
+    code, .leitura { font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0; }
+
+    .dica, .atencao { border-radius: 12px; padding: 14px 18px; margin: 14px 0; font-size: 15.5px; max-width: 760px; }
+    .dica { background: rgba(125,255,179,.08); border-left: 4px solid var(--verde); }
+    .atencao { background: rgba(255,209,102,.08); border-left: 4px solid var(--amarelo); }
+    .dica strong, .atencao strong { color: var(--titulo); }
+    .tema-claro .dica { background: rgba(16,163,90,.08); border-left-color: #10a35a; }
+    .tema-claro .atencao { background: rgba(245,158,11,.1); border-left-color: #d97706; }
+
+    figure.captura { margin: 16px 0; }
+    figure.captura img { border-radius: 12px; border: 2px solid var(--cartao-borda); }
+    figcaption { font-size: 14px; color: var(--texto-suave); margin-top: 6px; }
+    .antes-depois { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .antes-depois figure { margin: 0; position: relative; }
+    .antes-depois .rotulo { position: absolute; top: 10px; left: 10px; font: 400 20px Bangers, sans-serif; padding: 2px 12px; border-radius: 8px; background: rgba(0,0,0,.65); }
+
+    .diagrama { background: var(--painel-escuro); border: 1px solid var(--painel-escuro-borda); border-radius: var(--raio); padding: 16px; margin: 16px 0; overflow-x: auto; }
+    .diagrama svg { display: block; width: 100%; height: auto; min-width: 560px; }
+    .diagrama svg text { font-family: "M PLUS Rounded 1c", sans-serif; }
+
+    /* ---------- Demonstrações interativas ---------- */
+    .demo { background: var(--cartao); border: 2px solid var(--rosa); border-radius: var(--raio); padding: 18px; margin: 18px 0; }
+    .demo .titulo-demo { font: 400 24px Bangers, sans-serif; color: var(--rosa-texto); letter-spacing: .04em; }
+    .demo canvas { width: 100%; height: auto; display: block; border-radius: 10px; background: #0d0826; touch-action: none; cursor: pointer; }
+    .controles { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 12px; font-size: 14px; align-items: center; }
+    .controles label { display: flex; align-items: center; gap: 8px; }
+    .controles input[type=range] { accent-color: var(--rosa); }
+    .controles output { font-family: "JetBrains Mono", monospace; color: var(--destaque); min-width: 48px; }
+    .leitura { font-family: "JetBrains Mono", monospace; font-size: 13px; color: var(--texto-suave); margin-top: 8px; }
+
+    .exercicios li { margin-bottom: 10px; }
+    footer { border-top: 1px solid var(--cartao-borda); padding: 28px 20px; text-align: center; color: var(--texto-suave); font-size: 14px; }
+
+    @media (max-width: 960px) {
+      .pagina { grid-template-columns: 1fr; }
+      nav.sumario { display: none; }
+      .heroi-conteudo { grid-template-columns: 1fr; }
+      .grade.g3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 620px) {
+      body { font-size: 16px; }
+      .barra-topo .acoes .secundario { display: none; }
+      .grade.g3, .grade.g2, .antes-depois { grid-template-columns: 1fr; }
+      .passo { padding-left: 0; padding-top: 64px; }
+      .heroi { padding-top: 40px; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="barra-topo">
+  <a class="marca" href="#"><span>IFPI Floriano</span> Info Team · Tutorial</a>
+  <div class="acoes">
+    <button class="alternar-tema" type="button" id="alternarTema" aria-label="Alternar tema claro/escuro" title="Alternar tema claro/escuro"><span class="lua">🌙</span><span class="sol">☀️</span></button>
+    <a class="botao secundario" href="https://github.com/RobsonPiresCAFLO/ifpi-info-team">Código</a>
+    <a class="botao" href="index.html">Jogar ▶</a>
+  </div>
+</header>
+
+<div class="heroi">
+  <div class="heroi-conteudo">
+    <div>
+      <span class="selo">TUTORIAL • DESENVOLVIMENTO DE JOGOS WEB</span>
+      <h1>Como criar um jogo arcade</h1>
+      <p class="lead">Veja, passo a passo, como o <strong>IFPI Floriano Info Team</strong> foi construído: um jogo no estilo Street Fighter, que roda no navegador e apresenta o quadro de professores de Informática do IFPI Campus Floriano. O jogo usa HTML5 Canvas, JavaScript puro, sons sintetizados e IA para transformar as fotos em anime.</p>
+      <div class="acoes">
+        <a class="botao" href="#passo-a-passo">Começar o passo a passo</a>
+        <a class="botao secundario" href="index.html">Jogar primeiro</a>
+      </div>
+      <div class="numeros">
+        <div><strong>0</strong>bibliotecas no jogo</div>
+        <div><strong>3</strong>arquivos JavaScript</div>
+        <div><strong>~1.700</strong>linhas de código</div>
+        <div><strong>0</strong>arquivos de áudio</div>
+      </div>
+      <p class="creditos-topo">Autor: <strong>prof. Me. Robson Pires Borges</strong> · Coautoria: <strong>Inteligência Artificial (Claude, Anthropic)</strong></p>
+    </div>
+    <figure><img src="assets/tutorial/jogo.jpg" alt="Tela do jogo: professor em estilo anime pegando palavras de conteúdo que caem do céu" width="960" height="540"></figure>
+  </div>
+</div>
+
+<div class="pagina">
+  <nav class="sumario" aria-label="Sumário">
+    <strong>Sumário</strong>
+    <ol>
+      <li><a href="#visao-geral">1. Visão geral</a></li>
+      <li><a href="#tecnologias">2. Tecnologias</a></li>
+      <li><a href="#conhecimentos">3. Conhecimentos necessários</a></li>
+      <li><a href="#arquitetura">4. Arquitetura</a></li>
+      <li><a href="#passo-a-passo">5. Passo a passo</a></li>
+      <li class="sub"><a href="#p-imagens">Imagens com IA</a></li>
+      <li class="sub"><a href="#p-html">HTML e canvas</a></li>
+      <li class="sub"><a href="#p-laco">Laço do jogo</a></li>
+      <li class="sub"><a href="#p-entrada">Teclado e toque</a></li>
+      <li class="sub"><a href="#p-telas">Máquina de telas</a></li>
+      <li class="sub"><a href="#p-dados">Dados dos professores</a></li>
+      <li class="sub"><a href="#p-selecao">Tela de seleção</a></li>
+      <li class="sub"><a href="#p-fisica">Física do pulo</a></li>
+      <li class="sub"><a href="#p-itens">Itens caindo</a></li>
+      <li class="sub"><a href="#p-colisao">Colisão e pontos</a></li>
+      <li class="sub"><a href="#p-hud">HUD arcade</a></li>
+      <li class="sub"><a href="#p-efeitos">Efeitos visuais</a></li>
+      <li class="sub"><a href="#p-som">Som sintetizado</a></li>
+      <li class="sub"><a href="#p-fases">Fases e dificuldade</a></li>
+      <li class="sub"><a href="#p-vertical">Tela vertical (celular)</a></li>
+      <li class="sub"><a href="#p-testes">Testes automáticos</a></li>
+      <li class="sub"><a href="#p-publicar">Publicação</a></li>
+      <li><a href="#exercicios">6. Desafios para a turma</a></li>
+      <li><a href="#referencias">7. Referências</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <!-- ============================================================ -->
+    <section id="visao-geral">
+      <h2>1. Visão geral</h2>
+      <p>O jogo funciona como um fliperama clássico. O jogador escolhe um professor, entra em uma fase ambientada na escola e precisa <strong>pegar os conteúdos das disciplinas</strong> (etiquetas verdes) enquanto <strong>desvia dos problemas</strong> (etiquetas vermelhas, como <code>BUG</code> e <code>Erro 404</code>). Quando a barra de <em>Conhecimento</em> enche, ele passa de fase. São seis fases, e o jogo termina mostrando o quadro completo de professores.</p>
+      <div class="grade g3">
+        <figure class="captura"><img src="assets/tutorial/titulo.jpg" alt="Tela de título" loading="lazy"><figcaption>Tela de título</figcaption></figure>
+        <figure class="captura"><img src="assets/tutorial/selecao.jpg" alt="Tela de seleção de professor" loading="lazy"><figcaption>Seleção com painel de habilidades</figcaption></figure>
+        <figure class="captura"><img src="assets/tutorial/intro.jpg" alt="Introdução da fase" loading="lazy"><figcaption>Abertura da fase</figcaption></figure>
+        <figure class="captura"><img src="assets/tutorial/jogo.jpg" alt="Jogo em andamento com combo" loading="lazy"><figcaption>Jogo com combo e bônus</figcaption></figure>
+        <figure class="captura"><img src="assets/tutorial/fase-concluida.jpg" alt="Fase concluída" loading="lazy"><figcaption>Fase concluída e bônus</figcaption></figure>
+        <figure class="captura"><img src="assets/tutorial/quadro-final.jpg" alt="Quadro de professores no final" loading="lazy"><figcaption>Final: quadro de professores</figcaption></figure>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="tecnologias">
+      <h2>2. Tecnologias</h2>
+      <p>A regra do projeto foi <strong>não usar nenhuma biblioteca de jogos</strong>, como Phaser ou Unity. Tudo é feito com recursos que já vêm no navegador, o que é ótimo para aprender como um jogo funciona por dentro.</p>
+      <div class="grade g3">
+        <div class="cartao tec"><div class="icone">🧱</div><h4>HTML5 + CSS</h4><p>Uma página mínima com um único <code>&lt;canvas&gt;</code>. O CSS só centraliza a tela e aplica o fundo.</p></div>
+        <div class="cartao tec"><div class="icone">🎨</div><h4>Canvas 2D</h4><p>API de desenho do navegador. Todas as telas, personagens, barras e efeitos são desenhados com ela, 60 vezes por segundo.</p></div>
+        <div class="cartao tec"><div class="icone">⚡</div><h4>JavaScript (ES2020+)</h4><p>Lógica do jogo sem frameworks: objetos, arrays, <code>Set</code>, <code>Map</code>, arrow functions, <code>async/await</code>.</p></div>
+        <div class="cartao tec"><div class="icone">🔊</div><h4>Web Audio API</h4><p>Música e efeitos gerados por osciladores em tempo real. Não existe nenhum arquivo .mp3 no projeto.</p></div>
+        <div class="cartao tec"><div class="icone">🤖</div><h4>IA generativa de imagens</h4><p>Na versão 1, redes AnimeGAN em Python transformaram as fotos em anime. Na versão 2, retratos e cenários foram refeitos com arte mais refinada, em estilo mangá.</p></div>
+        <div class="cartao tec"><div class="icone">🔤</div><h4>Google Fonts</h4><p><em>Bangers</em> nos títulos, com cara de mangá, e <em>M PLUS Rounded 1c</em> nos textos.</p></div>
+        <div class="cartao tec"><div class="icone">💾</div><h4>localStorage</h4><p>Guarda o recorde e a preferência de som no próprio navegador.</p></div>
+        <div class="cartao tec"><div class="icone">🧪</div><h4>Chrome Headless</h4><p>Testes automáticos: um script abre o jogo sem janela, aperta teclas e tira capturas de tela.</p></div>
+        <div class="cartao tec"><div class="icone">🚀</div><h4>Git + GitHub Pages</h4><p>Versionamento e hospedagem gratuita do site estático.</p></div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="conhecimentos">
+      <h2>3. Conhecimentos necessários</h2>
+      <p>A maior parte do conteúdo é vista nas disciplinas iniciais dos cursos de TI. A tabela mostra onde cada conhecimento aparece no jogo.</p>
+      <div class="tabela">
+        <table>
+          <thead><tr><th>Conhecimento</th><th>Onde aparece no jogo</th><th>Nível</th></tr></thead>
+          <tbody>
+            <tr><td>Lógica de programação</td><td>Condições de vitória, derrota, combos e troca de telas</td><td><span class="etiqueta">Básico</span></td></tr>
+            <tr><td>JavaScript: funções, objetos e arrays</td><td>Lista de itens na tela, dados dos professores, partículas</td><td><span class="etiqueta">Básico</span></td></tr>
+            <tr><td>Eventos do navegador</td><td>Teclado (<code>keydown</code>/<code>keyup</code>), mouse e toque (<code>pointerdown</code>)</td><td><span class="etiqueta">Básico</span></td></tr>
+            <tr><td>Plano cartesiano</td><td>Posição (x, y) de tudo; no canvas o eixo Y cresce <em>para baixo</em></td><td><span class="etiqueta">Básico</span></td></tr>
+            <tr><td>Física básica (velocidade, aceleração)</td><td>Gravidade e pulo do personagem, itens caindo</td><td><span class="etiqueta azul">Intermediário</span></td></tr>
+            <tr><td>Geometria: detecção de colisão</td><td>Teste de sobreposição de retângulos (AABB)</td><td><span class="etiqueta azul">Intermediário</span></td></tr>
+            <tr><td>Máquina de estados</td><td>Título → seleção → fase → pausa → final</td><td><span class="etiqueta azul">Intermediário</span></td></tr>
+            <tr><td>Trigonometria (seno e cosseno)</td><td>Balanço dos braços, itens em zigue-zague, explosões de partículas</td><td><span class="etiqueta azul">Intermediário</span></td></tr>
+            <tr><td>Áudio digital (frequência, notas MIDI)</td><td>Sintetizador e sequenciador de música</td><td><span class="etiqueta rosa">Avançado</span></td></tr>
+            <tr><td>Python e redes neurais (uso)</td><td>Conversão das fotos para anime</td><td><span class="etiqueta rosa">Avançado</span></td></tr>
+            <tr><td>Git e terminal Linux</td><td>Versionamento, testes e publicação</td><td><span class="etiqueta">Básico</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="arquitetura">
+      <h2>4. Arquitetura</h2>
+      <p>O projeto tem apenas <strong>três arquivos JavaScript</strong>, cada um com uma responsabilidade. Separar os <em>dados</em> do <em>motor</em> permite que alguém sem experiência em programação altere professores e habilidades editando só um arquivo.</p>
+
+      <div class="diagrama">
+        <svg viewBox="0 0 900 330" role="img" aria-label="Diagrama de arquivos do projeto">
+          <defs>
+            <marker id="seta" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b9b1e0"/></marker>
+          </defs>
+          <rect x="330" y="14" width="240" height="64" rx="14" fill="#2c2066" stroke="#ffd166" stroke-width="2"/>
+          <text x="450" y="42" text-anchor="middle" fill="#ffd166" font-size="20" font-weight="800">index.html</text>
+          <text x="450" y="64" text-anchor="middle" fill="#b9b1e0" font-size="13">carrega CSS, fontes e scripts</text>
+
+          <g stroke="#b9b1e0" stroke-width="2" fill="none" marker-end="url(#seta)">
+            <path d="M390 78 L150 132"/><path d="M450 78 L450 132"/><path d="M510 78 L750 132"/>
+          </g>
+
+          <rect x="30" y="136" width="240" height="120" rx="14" fill="#1b1242" stroke="#7dffb3" stroke-width="2"/>
+          <text x="150" y="166" text-anchor="middle" fill="#7dffb3" font-size="19" font-weight="800">js/dados.js</text>
+          <text x="150" y="192" text-anchor="middle" fill="#ece8ff" font-size="14">PROFESSORES, FASES</text>
+          <text x="150" y="214" text-anchor="middle" fill="#ece8ff" font-size="14">PALAVRAS_BOAS</text>
+          <text x="150" y="236" text-anchor="middle" fill="#ece8ff" font-size="14">COISAS_RUINS</text>
+
+          <rect x="330" y="136" width="240" height="120" rx="14" fill="#1b1242" stroke="#7dd3fc" stroke-width="2"/>
+          <text x="450" y="166" text-anchor="middle" fill="#7dd3fc" font-size="19" font-weight="800">js/audio.js</text>
+          <text x="450" y="192" text-anchor="middle" fill="#ece8ff" font-size="14">módulo Som</text>
+          <text x="450" y="214" text-anchor="middle" fill="#ece8ff" font-size="14">efeitos + sequenciador</text>
+          <text x="450" y="236" text-anchor="middle" fill="#ece8ff" font-size="14">(Web Audio API)</text>
+
+          <rect x="630" y="136" width="240" height="120" rx="14" fill="#1b1242" stroke="#ff3d7f" stroke-width="2"/>
+          <text x="750" y="166" text-anchor="middle" fill="#ff8fab" font-size="19" font-weight="800">js/jogo.js</text>
+          <text x="750" y="192" text-anchor="middle" fill="#ece8ff" font-size="14">entrada, telas, física</text>
+          <text x="750" y="214" text-anchor="middle" fill="#ece8ff" font-size="14">colisão, HUD, desenho</text>
+          <text x="750" y="236" text-anchor="middle" fill="#ece8ff" font-size="14">laço principal</text>
+
+          <g stroke="#ff8fab" stroke-width="2" stroke-dasharray="6 5" fill="none" marker-end="url(#seta)">
+            <path d="M630 196 L574 196"/>
+            <path d="M750 256 C 750 310, 150 310, 150 260"/>
+          </g>
+          <text x="600" y="186" text-anchor="middle" fill="#ff8fab" font-size="12">usa</text>
+          <text x="450" y="318" text-anchor="middle" fill="#ff8fab" font-size="13">lê os dados (professores, fases, palavras)</text>
+        </svg>
+      </div>
+
+      <h3>O laço do jogo (game loop)</h3>
+      <p>Todo jogo em tempo real repete o mesmo ciclo cerca de 60 vezes por segundo: <strong>ler a entrada → atualizar o estado → desenhar</strong>. O tempo entre dois quadros (<code>dt</code>, em segundos) entra em todos os cálculos de movimento. Assim o jogo roda na mesma velocidade em um monitor de 60 Hz ou de 144 Hz.</p>
+      <div class="diagrama">
+        <svg viewBox="0 0 900 200" role="img" aria-label="Ciclo do laço do jogo">
+          <defs><marker id="seta2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#ffd166"/></marker></defs>
+          <g font-size="17" font-weight="800" text-anchor="middle">
+            <rect x="20" y="60" width="180" height="70" rx="35" fill="#2c2066" stroke="#7dd3fc" stroke-width="2"/><text x="110" y="92" fill="#7dd3fc">requestAnimation</text><text x="110" y="113" fill="#7dd3fc">Frame</text>
+            <rect x="250" y="60" width="180" height="70" rx="35" fill="#2c2066" stroke="#7dffb3" stroke-width="2"/><text x="340" y="92" fill="#7dffb3">1. Entrada</text><text x="340" y="113" fill="#b9b1e0" font-size="13" font-weight="400">teclas, toques</text>
+            <rect x="480" y="60" width="180" height="70" rx="35" fill="#2c2066" stroke="#ffd166" stroke-width="2"/><text x="570" y="92" fill="#ffd166">2. atualizar(dt)</text><text x="570" y="113" fill="#b9b1e0" font-size="13" font-weight="400">física, colisões, regras</text>
+            <rect x="710" y="60" width="170" height="70" rx="35" fill="#2c2066" stroke="#ff3d7f" stroke-width="2"/><text x="795" y="92" fill="#ff8fab">3. desenhar()</text><text x="795" y="113" fill="#b9b1e0" font-size="13" font-weight="400">canvas 2D</text>
+          </g>
+          <g stroke="#ffd166" stroke-width="2.5" fill="none" marker-end="url(#seta2)">
+            <path d="M200 95 L246 95"/><path d="M430 95 L476 95"/><path d="M660 95 L706 95"/>
+            <path d="M795 130 C 795 185, 110 185, 110 134"/>
+          </g>
+          <text x="450" y="192" text-anchor="middle" fill="#ffd166" font-size="13">próximo quadro (~16 ms depois)</text>
+        </svg>
+      </div>
+
+      <h3>Máquina de telas</h3>
+      <p>Uma variável <code>tela</code> guarda em que parte do jogo estamos. Cada tela tem sua própria função de atualizar e de desenhar, e a função <code>irPara()</code> faz as transições.</p>
+      <div class="diagrama">
+        <svg viewBox="0 0 900 260" role="img" aria-label="Diagrama de estados das telas do jogo">
+          <defs><marker id="seta3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#b9b1e0"/></marker></defs>
+          <g font-size="15" font-weight="800" text-anchor="middle">
+            <rect x="10" y="30" width="110" height="44" rx="10" fill="#2c2066" stroke="#ffd166"/><text x="65" y="57" fill="#ffd166">título</text>
+            <rect x="160" y="30" width="110" height="44" rx="10" fill="#2c2066" stroke="#ffd166"/><text x="215" y="57" fill="#ffd166">seleção</text>
+            <rect x="310" y="30" width="110" height="44" rx="10" fill="#2c2066" stroke="#7dffb3"/><text x="365" y="57" fill="#7dffb3">intro</text>
+            <rect x="460" y="30" width="120" height="44" rx="10" fill="#2c2066" stroke="#7dffb3"/><text x="520" y="57" fill="#7dffb3">jogando</text>
+            <rect x="630" y="30" width="150" height="44" rx="10" fill="#2c2066" stroke="#7dffb3"/><text x="705" y="57" fill="#7dffb3">faseConcluida</text>
+            <rect x="800" y="120" width="90" height="44" rx="10" fill="#2c2066" stroke="#ffd166"/><text x="845" y="147" fill="#ffd166">final</text>
+            <rect x="460" y="130" width="120" height="44" rx="10" fill="#2c2066" stroke="#7dd3fc"/><text x="520" y="157" fill="#7dd3fc">pausa</text>
+            <rect x="300" y="200" width="130" height="44" rx="10" fill="#2c2066" stroke="#ff5c7a"/><text x="365" y="227" fill="#ff8fab">ko / tempo</text>
+            <rect x="130" y="200" width="130" height="44" rx="10" fill="#2c2066" stroke="#ff5c7a"/><text x="195" y="227" fill="#ff8fab">continuar</text>
+            <rect x="10" y="130" width="110" height="44" rx="10" fill="#2c2066" stroke="#ff5c7a"/><text x="65" y="157" fill="#ff8fab">gameover</text>
+          </g>
+          <g stroke="#b9b1e0" stroke-width="2" fill="none" marker-end="url(#seta3)">
+            <path d="M120 52 L156 52"/><path d="M270 52 L306 52"/><path d="M420 52 L456 52"/><path d="M580 52 L626 52"/>
+            <path d="M705 74 C 705 100, 400 100, 370 78"/>
+            <path d="M780 60 C 840 70, 845 90, 845 116"/>
+            <path d="M510 74 L510 126"/><path d="M530 130 L530 78"/>
+            <path d="M470 74 C 440 130, 400 160, 380 196"/>
+            <path d="M300 222 L264 222"/>
+            <path d="M195 200 C 250 120, 300 100, 350 78"/>
+            <path d="M130 222 C 60 222, 60 200, 62 178"/>
+            <path d="M65 130 L65 78"/>
+            <path d="M845 120 C 845 0, 65 0, 65 26"/>
+          </g>
+          <g font-size="11.5" fill="#b9b1e0" text-anchor="middle">
+            <text x="555" y="112">vitória → próxima fase</text>
+            <text x="880" y="92">6ª fase</text>
+            <text x="440" y="176" text-anchor="end">vida 0 ou tempo 0</text>
+            <text x="260" y="130">ENTER</text>
+            <text x="40" y="200">10 s</text>
+          </g>
+        </svg>
+      </div>
+
+      <h3>Estrutura de pastas</h3>
+      <div class="bloco-codigo" data-lang="plaintext" data-titulo="projeto"><script type="text/x-codigo">ifpi-info-team/
+├── index.html            ← página do jogo (só um <canvas>)
+├── tutorial.html         ← esta página
+├── css/jogo.css          ← centraliza o canvas
+├── js/
+│   ├── dados.js          ← professores, fases e palavras (edite aqui!)
+│   ├── audio.js          ← música e efeitos sintetizados
+│   └── jogo.js           ← motor do jogo
+└── assets/
+    ├── professores/      ← retratos em estilo mangá (600×800, JPG)
+    ├── cenarios/temp/    ← cenários do campus em estilo anime
+    └── tutorial/         ← imagens desta página</script></div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="passo-a-passo">
+      <h2>5. Passo a passo</h2>
+      <p>A seguir estão as etapas na ordem em que o jogo foi construído. Os trechos de código são do projeto real, às vezes resumidos para caber na explicação.</p>
+
+      <div class="passos">
+
+        <!-- 1 -->
+        <div class="passo" id="p-imagens">
+          <h3>Transformar as fotos em anime com IA (versão 1)</h3>
+          <p class="arquivo">Python · PyTorch · onnxruntime</p>
+          <p>A ideia era ter um visual de anime, sem pixel art. Um filtro comum de "desenho" não bastava, então usamos duas <strong>redes neurais generativas (GANs)</strong> já treinadas:</p>
+          <ul>
+            <li><strong>AnimeGAN2 <em>face_paint_512_v2</em>:</strong> treinada especialmente em rostos. Foi usada nos retratos dos professores.</li>
+            <li><strong>AnimeGANv3 <em>Shinkai</em>:</strong> imita o estilo de paisagem dos filmes de Makoto Shinkai. Foi usada nos cenários da escola.</li>
+          </ul>
+          <div class="antes-depois">
+            <figure><img src="assets/tutorial/antes-cenario.jpg" alt="Foto original da área externa da escola" loading="lazy"><span class="rotulo">ANTES</span></figure>
+            <figure><img src="assets/tutorial/depois-cenario.jpg" alt="A mesma foto convertida para o estilo anime" loading="lazy"><span class="rotulo" style="color:var(--amarelo)">DEPOIS</span></figure>
+          </div>
+          <p style="margin-top:14px">A rede recebe a imagem como um tensor de números entre −1 e 1 e devolve a imagem transformada. O modelo roda na CPU, sem placa de vídeo, em poucos segundos por foto:</p>
+          <div class="bloco-codigo" data-lang="python" data-titulo="rosto.py"><script type="text/x-codigo">import numpy as np, torch
+from PIL import Image
+from model import Generator            # github.com/bryandlee/animegan2-pytorch
+
+net = Generator()
+net.load_state_dict(torch.load('face_paint_512_v2.pt', map_location='cpu'))
+net.eval()
+
+img = Image.open('professores/Fulano.jpg').convert('RGB').resize((512, 680))
+x = torch.from_numpy(np.array(img)).float() / 127.5 - 1   # pixels 0..255 → -1..1
+x = x.permute(2, 0, 1)[None]                              # altura×largura×cor → lote×cor×altura×largura
+
+with torch.no_grad():                                     # só inferência, sem treino
+    y = net(x)[0].clamp(-1, 1)
+
+y = ((y + 1) * 127.5).permute(1, 2, 0).byte().numpy()     # volta para 0..255
+Image.fromarray(y).save('assets/professores/fulano.jpg')</script></div>
+          <h4 style="margin-top:22px">Versão 2: arte refinada em estilo mangá</h4>
+          <p>Na segunda versão do jogo, os retratos e os cenários foram refeitos com <strong>IA generativa de imagens</strong>. O traço ficou mais limpo, as cores mais vivas e os rostos mais fiéis às fotos. O campus também ganhou novos ambientes (Entrada, Área Verde, Garagem e Bloco J), e o jogo passou de cinco para <strong>seis fases</strong>.</p>
+          <div class="antes-depois">
+            <figure><img src="assets/tutorial/retrato-v1.jpg" alt="Retrato na versão 1, convertido com AnimeGAN" loading="lazy"><span class="rotulo">VERSÃO 1</span></figure>
+            <figure><img src="assets/tutorial/retrato-v2.jpg" alt="O mesmo professor na versão 2, em estilo mangá" loading="lazy"><span class="rotulo" style="color:var(--amarelo)">VERSÃO 2</span></figure>
+            <figure><img src="assets/tutorial/cenario-v1.jpg" alt="Estacionamento na versão 1" loading="lazy"><span class="rotulo">VERSÃO 1</span></figure>
+            <figure><img src="assets/tutorial/cenario-v2.jpg" alt="Estacionamento na versão 2, com mais detalhes" loading="lazy"><span class="rotulo" style="color:var(--amarelo)">VERSÃO 2</span></figure>
+          </div>
+          <p style="margin-top:14px">As imagens novas saíram em alta resolução (PNG de 1086×1448, cerca de 2 MB cada), pesadas demais para a web. Como o maior retrato aparece com 270×330 pixels no jogo, um pequeno script com <strong>Pillow</strong> reduz e recomprime tudo para JPG. O total caiu de ~32 MB para ~2,4 MB, e o jogo abre rápido até no celular:</p>
+          <div class="bloco-codigo" data-lang="python" data-titulo="comprimir.py"><script type="text/x-codigo">import glob
+from PIL import Image
+
+for arquivo in glob.glob('assets/professores/*_manga.png'):
+    img = Image.open(arquivo).convert('RGB')               # JPG não tem transparência
+    img = img.resize((600, 800), Image.LANCZOS)            # 2× o maior tamanho exibido
+    img.save(arquivo[:-4] + '.jpg', 'JPEG', quality=84, optimize=True, progressive=True)</script></div>
+          <div class="dica"><strong>Mesma proporção, zero código novo:</strong> os retratos novos mantêm a proporção 3:4 dos antigos. Por isso a função que recorta o rosto (<code>rosto(img)</code>), baseada em porcentagens da largura e da altura, continuou funcionando sem nenhuma alteração. Bastou trocar os caminhos em <code>dados.js</code>.</div>
+          <div class="atencao"><strong>Privacidade:</strong> as fotos originais, as versões em alta resolução e a planilha de horários <em>não</em> foram publicadas no site. Só as versões finais vão para o repositório. Antes de publicar imagens de pessoas, peça autorização.</div>
+        </div>
+
+        <!-- 2 -->
+        <div class="passo" id="p-html">
+          <h3>A página HTML e o canvas</h3>
+          <p class="arquivo">index.html · css/jogo.css</p>
+          <p>O HTML é mínimo: um <code>&lt;canvas&gt;</code> e três scripts, carregados <strong>nesta ordem</strong>. Primeiro vêm os dados, depois o som e por fim o jogo, que usa os dois anteriores.</p>
+          <div class="bloco-codigo" data-lang="html" data-titulo="index.html"><script type="text/x-codigo"><body>
+  <canvas id="tela" aria-label="Jogo IFPI Floriano Info Team"></canvas>
+  <script src="js/dados.js"><\/script>
+  <script src="js/audio.js"><\/script>
+  <script src="js/jogo.js"><\/script>
+</body></script></div>
+          <p>O jogo é todo desenhado numa <strong>resolução lógica fixa de 1280×720</strong>. Para ficar nítido em qualquer tela, inclusive celulares com alta densidade de pixels, o canvas real é redimensionado e o desenho é ampliado com uma matriz de transformação:</p>
+          <div class="bloco-codigo" data-lang="javascript" data-titulo="js/jogo.js"><script type="text/x-codigo">const W = 1280, H = 720;   // resolução lógica
+
+function redimensionar() {
+  const dpr = window.devicePixelRatio || 1;             // 2 ou 3 em celulares
+  escala = Math.min(innerWidth / W, innerHeight / H);    // cabe na janela sem distorcer
+  canvas.style.width  = `${Math.floor(W * escala)}px`;   // tamanho visual (CSS)
+  canvas.style.height = `${Math.floor(H * escala)}px`;
+  canvas.width  = Math.floor(W * escala * dpr);          // pixels reais do canvas
+  canvas.height = Math.floor(H * escala * dpr);
+}
+
+// no início de cada quadro:
+const k = canvas.width / W;
+ctx.setTransform(k, 0, 0, k, 0, 0);   // a partir daqui, desenhamos pensando em 1280×720</script></div>
+          <div class="dica"><strong>Por que isso importa?</strong> Com uma resolução lógica, todas as posições do jogo (chão em y = 640, botões, HUD) são números fixos. Não é preciso recalcular nada quando a janela muda de tamanho.</div>
+        </div>
+
+        <!-- 3 -->
+        <div class="passo" id="p-laco">
+          <h3>O laço principal</h3>
+          <p class="arquivo">js/jogo.js</p>
+          <p><code>requestAnimationFrame</code> pede ao navegador para chamar nossa função antes de desenhar o próximo quadro. Medimos o tempo que passou (<code>dt</code>) e limitamos esse valor a 0,05 s. Assim, se a aba ficar em segundo plano, o personagem não "teletransporta" quando o jogador voltar.</p>
+          <div class="bloco-codigo" data-lang="javascript" data-titulo="js/jogo.js"><script type="text/x-codigo">let ultimo = performance.now();
+
+function quadro(agora) {
+  const dt = Math.min(0.05, (agora - ultimo) / 1000);   // segundos desde o último quadro
+  ultimo = agora;
+
+  atualizar(dt);        // regras, física, colisões
+  desenhar();           // pinta a tela inteira
+
+  apertadas.clear();    // teclas "recém-apertadas" valem só por 1 quadro
+  cliques.length = 0;
+  requestAnimationFrame(quadro);
+}
+requestAnimationFrame(quadro);</script></div>
+          <p>Todo movimento é multiplicado por <code>dt</code>. Por exemplo, <code>x += velocidade * dt</code> faz o objeto andar <em>velocidade</em> pixels por segundo, seja qual for o FPS.</p>
+        </div>
+
+        <!-- 4 -->
+        <div class="passo" id="p-entrada">
+          <h3>Teclado, mouse e toque</h3>
+          <p class="arquivo">js/jogo.js</p>
+          <p>Jogos precisam de duas perguntas diferentes sobre o teclado:</p>
+          <ul>
+            <li><strong>"Está segurando?":</strong> serve para andar enquanto a seta está pressionada. Usa o conjunto <code>teclas</code>.</li>
+            <li><strong>"Acabou de apertar?":</strong> serve para pular ou confirmar uma única vez. Usa o conjunto <code>apertadas</code>, que é esvaziado a cada quadro.</li>
+          </ul>
+          <div class="bloco-codigo" data-lang="javascript" data-titulo="js/jogo.js"><script type="text/x-codigo">const teclas = new Set();     // teclas pressionadas agora
+const apertadas = new Set();  // teclas que desceram NESTE quadro
+
+addEventListener('keydown', (e) => {
+  if (!teclas.has(e.code)) apertadas.add(e.code);   // ignora a repetição automática do SO
+  teclas.add(e.code);
+  if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault(); // não rolar a página
+});
+addEventListener('keyup', (e) => teclas.delete(e.code));
+
+const MAPA = {
+  esq:  ['ArrowLeft', 'KeyA'],
+  dir:  ['ArrowRight', 'KeyD'],
+  pulo: ['ArrowUp', 'KeyW', 'Space'],
+};
+const segurando = (acao) => MAPA[acao].some((c) => teclas.has(c)) || toque[acao];
+const apertou   = (codigos) => codigos.some((c) => apertadas.has(c));</script></div>
+          <p>No celular, <code>pointerdown</code> e <code>pointermove</code> registram cada dedo num <code>Map</code>. A cada quadro, verificamos se algum dedo está dentro de um dos botões circulares desenhados na tela, usando a distância entre dois pontos (<code>Math.hypot</code>).</p>
+          <figure class="captura"><img src="assets/tutorial/toque.jpg" alt="Botões de toque na tela do celular" loading="lazy"><figcaption>No modo toque aparecem botões ◀ ▶ ▲ semitransparentes.</figcaption></figure>
+        </div>
+
+        <!-- 5 -->
+        <div class="passo" id="p-telas">
+          <h3>A máquina de telas</h3>
+          <p class="arquivo">js/jogo.js</p>
+          <p>Em vez de vários <code>if</code> espalhados, cada tela tem sua função. A <code>irPara()</code> troca de tela, zera o cronômetro local <code>tTela</code>, que é usado nas animações de entrada, e escolhe a música.</p>
+          <div class="bloco-codigo" data-lang="javascript" data-titulo="js/jogo.js"><script type="text/x-codigo">let tela = 'carregando';
+let tTela = 0;   // segundos desde que entramos na tela atual
+
+function irPara(nova) {
+  tela = nova;
+  tTela = 0;
+  const trilha = { titulo: 'titulo', selecao: 'selecao', intro: 'jogo', jogando: 'jogo', final: 'titulo' }[nova];
+  if (trilha !== undefined) Som.musica(trilha);
+}
+
+function atualizar(dt) {
+  tTela += dt;
+  switch (tela) {
+    case 'titulo':        atualizarTitulo(); break;
+    case 'selecao':       atualizarSelecao(); break;
+    case 'intro':         atualizarIntro(dt); break;
+    case 'jogando':       atualizarJogo(dt); break;
+    case 'pausa':         atualizarPausa(); break;
+    case 'faseConcluida': atualizarFaseConcluida(dt); break;
+    // ...
+  }
+}</script></div>
+          <div class="dica"><strong>Animações com <code>tTela</code>:</strong> para o título "FASE 1" deslizar da esquerda, basta calcular <code>x = (1 - suave(tTela / 0.4)) * -W</code>. Não é preciso guardar estado de animação: a posição sai direto do tempo.</div>
+        </div>
+
+        <!-- 6 -->
+        <div class="passo" id="p-dados">
+          <h3>Os dados dos professores</h3>
+          <p class="arquivo">js/dados.js</p>
+          <p>Nome, retrato, cor do uniforme, título de "lutador", habilidades e palavras de cada disciplina ficam num array de objetos. As habilidades foram escritas a partir do <strong>horário de aulas</strong> de cada professor. As <code>disciplinas</code> são as palavras que caem durante o jogo quando aquele professor é escolhido.</p>
+          <div class="bloco-codigo" data-lang="javascript" data-titulo="js/dados.js"><script type="text/x-codigo">const PROFESSORES = [
+  {
+    nome: 'Justino',
+    foto: 'assets/professores/Justino_manga.jpg',
+    cor: '#2ec4b6',
+    titulo: 'O Senhor dos Dados',
+    habilidades: [
+      'Banco de Dados: invoca SELECTs e JOINs com precisão cirúrgica',
+      'Desenvolvimento Orientado a Testes: escreve o teste antes do código',
+    ],
+    disciplinas: ['SQL', 'SELECT', 'JOIN', 'Modelo ER', 'Normalização', 'TDD'],
+  },
+  // ... mais 19 professores
+];
+
+const FASES = [
+  { nome: 'Entrada', subtitulo: 'Primeiro dia de aula', fundo: 'assets/cenarios/temp/entrada.jpg' },
+  // ... mais 5 fases
+];</script></div>
+          <div class="dica"><strong>Boa prática:</strong> se chegar um professor novo, basta acrescentar um objeto ao array. A grade de seleção calcula sozinha quantas linhas e colunas precisa.</div>
+        </div>
+
+        <!-- 7 -->
+        <div class="passo" id="p-selecao">
+          <h3>A tela de seleção</h3>
+          <p class="arquivo">js/jogo.js</p>
+          <p>Os retratos ficam em uma grade. Com as setas o cursor se move, e nas bordas ele "dá a volta" para o outro lado usando o operador de resto <code>%</code>. Clicar em um retrato o seleciona; clicar de novo confirma.</p>
+          <figure class="captura"><img src="assets/tutorial/selecao.jpg" alt="Tela de seleção de professores" loading="lazy"></figure>
+          <div class="bloco-codigo" data-lang="javascript" data-titulo="js/jogo.js"><script type="text/x-codigo">const n = PROFESSORES.length;
+if (apertou(['ArrowRight', 'KeyD'])) sel = (sel + 1) % n;         // depois do último, volta ao primeiro
+if (apertou(['ArrowLeft',  'KeyA'])) sel = (sel - 1 + n) % n;     // "+ n" evita índice negativo
+if (apertou(['ArrowDown',  'KeyS'])) sel = sel + cols < n ? sel + cols : sel % cols;
+
+// clique/toque: descobre em qual célula caiu
+for (const c of cliques) {
+  const i = celulas.findIndex((r) => c.x >= r.x && c.x <= r.x + r.w && c.y >= r.y && c.y <= r.y + r.h);
+  if (i === sel) confirmar = true;   // segundo toque no mesmo retrato = escolher
+  else if (i !== -1) sel = i;
+}</script></div>
+          <p>O painel quebra as habilidades em várias linhas medindo cada palavra com <code>ctx.measureText()</code>, já que o canvas não faz quebra de linha automática.</p>
+        </div>
+
+        <!-- 8 -->
+        <div class="passo" id="p-fisica">
+          <h3>Física do personagem: andar e pular</h3>
+          <p class="arquivo">js/jogo.js</p>
+          <p>O personagem tem posição (<code>x</code>, <code>y</code>) e velocidade (<code>vx</code>, <code>vy</code>). A cada quadro, a <strong>gravidade aumenta a velocidade vertical</strong> e a velocidade muda a posição. Isso se chama <em>integração de Euler</em>. Como o eixo Y do canvas cresce para baixo, pular significa dar uma velocidade <em>negativa</em>.</p>
+          <div class="bloco-codigo" data-lang="javascript" data-titulo="js/jogo.js"><script type="text/x-codigo">function atualizarJogador(dt) {
+  const p = jogador;
+  let eixo = 0;
+  if (segurando('esq')) eixo -= 1;
+  if (segurando('dir')) eixo += 1;
+
+  // aceleração suave em direção à velocidade desejada (sem "tranco")
+  p.vx += (eixo * 460 - p.vx) * Math.min(1, dt * 14);
+
+  if (apertou(MAPA.pulo) && p.noChao) {
+    p.vy = -860;          // impulso para cima
+    p.noChao = false;
+  }
+  // soltou o botão cedo? pulo mais baixo (controle fino, como em jogos de plataforma)
+  if (!p.noChao && !segurando('pulo') && p.vy < -320) p.vy = -320;
+
+  p.vy += 2500 * dt;                          // gravidade (px/s²)
+  p.x = limitar(p.x + p.vx * dt, 50, W - 50);
+  p.y += p.vy * dt;
+
+  if (p.y >= CHAO) { p.y = CHAO; p.vy = 0; p.noChao = true; }   // encostou no chão
+}</script></div>
+
+          <div class="demo">
+            <div class="titulo-demo">🎮 Experimente: gravidade e impulso</div>
+            <p style="font-size:15px;margin:4px 0 10px">Clique no quadro ou aperte <strong>Espaço</strong> para pular. Mude os valores e veja a trajetória (pontos amarelos).</p>
+            <canvas id="demoFisica" width="760" height="340" tabindex="0" aria-label="Demonstração de física do pulo"></canvas>
+            <div class="controles">
+              <label>Gravidade <input type="range" id="dGravidade" min="600" max="5000" step="100" value="2500"><output id="oGravidade">2500</output></label>
+              <label>Impulso <input type="range" id="dImpulso" min="300" max="1400" step="20" value="860"><output id="oImpulso">860</output></label>
+            </div>
+            <div class="leitura" id="leituraFisica">vy = 0 px/s</div>
+          </div>
+          <div class="dica"><strong>Fórmula útil:</strong> a altura máxima do pulo é <code>impulso² / (2 × gravidade)</code>. Com os valores do jogo: 860² / 5000 ≈ <strong>148 px</strong>, o suficiente para alcançar itens um pouco acima da cabeça.</div>
+        </div>
+
+        <!-- 9 -->
+        <div class="passo" id="p-itens">
+          <h3>Itens caindo do céu</h3>
+          <p class="arquivo">js/jogo.js</p>
+          <p>Um temporizador cria um item novo em intervalos que diminuem a cada fase. O tipo do item é sorteado com probabilidades: cerca de 6% de poderes, uma fatia crescente de problemas e o resto de conteúdos. A largura da etiqueta é medida pelo texto, e alguns itens descrevem um zigue-zague com seno.</p>
+          <div class="bloco-codigo" data-lang="javascript" data-titulo="js/jogo.js"><script type="text/x-codigo">function gerarItem() {
+  const f = jogo.fase;
+  const r = Math.random();
+  const pRuim = Math.min(0.55, 0.3 + f * 0.06);        // fases avançadas = mais problemas
+  let tipo, texto;
+  if (r < 0.06)              { tipo = 'poder'; texto = sortear(PODERES).texto; }
+  else if (r < 0.06 + pRuim) { tipo = 'ruim';  texto = sortear(COISAS_RUINS); }
+  else                       { tipo = 'bom';   texto = palavraBoa(); }  // usa as disciplinas do professor
+
+  ctx.font = `800 18px ${FONTE_TEXTO}`;
+  const w = ctx.measureText(texto).width + 40;          // etiqueta do tamanho do texto
+  const x = rand(w / 2 + 20, W - w / 2 - 20);
+  const zig = f >= 2 && Math.random() < 0.2 + f * 0.08 ? rand(50, 120) : 0;
+
+  jogo.itens.push({ tipo, texto, x, x0: x, y: -44, w, h: 44,
+                    vy: rand(120, 180) + f * 35, zig, fz: rand(0, 6.28), t: 0 });
+}
+
+// no update de cada item:
+it.y += it.vy * dt;
+if (it.zig) it.x = it.x0 + Math.sin(it.t * 2.2 + it.fz) * it.zig;   // vaivém horizontal</script></div>
+        </div>
+
+        <!-- 10 -->
+        <div class="passo" id="p-colisao">
+          <h3>Colisão, pontos e combos</h3>
+          <p class="arquivo">js/jogo.js</p>
+          <p>A forma mais usada de detectar colisão em jogos 2D é a <strong>AABB</strong> (<em>Axis-Aligned Bounding Box</em>). Cada objeto é tratado como um retângulo alinhado aos eixos, e dois retângulos se tocam se estiverem sobrepostos <em>nos dois eixos ao mesmo tempo</em>.</p>
+          <div class="bloco-codigo" data-lang="javascript" data-titulo="js/jogo.js"><script type="text/x-codigo">// caixa de colisão do professor (corpo + cabeça)
+const hb = { x1: jogador.x - 38, x2: jogador.x + 38, y1: jogador.y - 175, y2: jogador.y };
+
+const colide =
+  it.x + it.w / 2 > hb.x1 && it.x - it.w / 2 < hb.x2 &&   // sobrepõe no eixo X
+  it.y + it.h / 2 > hb.y1 && it.y - it.h / 2 < hb.y2;     // sobrepõe no eixo Y
+
+if (colide && !(it.tipo === 'ruim' && jogador.invul > 0)) coletar(it);</script></div>
+
+          <div class="demo">
+            <div class="titulo-demo">🎮 Experimente: colisão AABB</div>
+            <p style="font-size:15px;margin:4px 0 10px">Arraste a etiqueta (mouse ou dedo) sobre o personagem. As quatro condições acendem em verde quando são verdadeiras. Só existe colisão quando <strong>todas</strong> estão verdes.</p>
+            <canvas id="demoColisao" width="760" height="300" aria-label="Demonstração de colisão AABB"></canvas>
+            <div class="leitura" id="leituraColisao"></div>
+          </div>
+
+          <p>Ao pegar um conteúdo, o <strong>combo</strong> aumenta. A cada 5 acertos seguidos o multiplicador de pontos sobe (até ×5). Deixar um conteúdo cair no chão zera o combo. Ao encostar em um problema, o jogador perde vida, fica <em>invulnerável</em> por 1,3 s (o personagem pisca) e é empurrado para trás.</p>
+          <div class="bloco-codigo" data-lang="javascript" data-titulo="js/jogo.js"><script type="text/x-codigo">if (it.tipo === 'bom') {
+  j.combo++;
+  const mult = Math.min(5, 1 + Math.floor(j.combo / 5)) * (j.dobro > 0 ? 2 : 1);
+  j.pontos += 100 * mult;
+  j.barra = Math.min(100, j.barra + (7 - j.fase * 0.5));   // cada fase exige mais acertos
+} else if (it.tipo === 'ruim') {
+  j.vida -= 18 + j.fase * 2;
+  j.combo = 0;
+  j.tremor = 0.35;                                        // sacode a tela
+  jogador.invul = 1.3;
+  jogador.vx = (jogador.x < it.x ? -1 : 1) * 500;         // empurrão para longe do item
+}</script></div>
+        </div>
+
+        <!-- 11 -->
+        <div class="passo" id="p-hud">
+          <h3>HUD no estilo arcade</h3>
+          <p class="arquivo">js/jogo.js</p>
+          <p>O HUD imita o Street Fighter. A barra de <strong>vida</strong> fica à esquerda, o <strong>cronômetro</strong> no centro e a barra de <strong>conhecimento</strong> à direita, espelhada. As barras são paralelogramos: desenhamos o contorno inclinado e usamos <code>ctx.clip()</code> para que o preenchimento respeite o formato.</p>
+          <div class="bloco-codigo" data-lang="javascript" data-titulo="js/jogo.js"><script type="text/x-codigo">function barra(x, y, w, h, frac, fracRastro, corCheia, corRastro, espelhada) {
+  const inclina = h * 0.6;
+  ctx.beginPath();                        // paralelogramo
+  ctx.moveTo(x + inclina, y);
+  ctx.lineTo(x + w, y);
+  ctx.lineTo(x + w - inclina, y + h);
+  ctx.lineTo(x, y + h);
+  ctx.closePath();
+  ctx.save();
+  ctx.clip();                             // tudo que for pintado agora fica dentro da forma
+  pintar(fracRastro, corRastro);          // "rastro" vermelho do dano, que desce devagar
+  pintar(frac, corCheia);                 // valor atual
+  ctx.restore();
+}</script></div>
+          <p>O efeito de <strong>rastro de dano</strong>, comum nos jogos de luta, usa dois valores: a vida real e a vida <em>mostrada</em>, que persegue a real devagar (<code>vidaMostrada += (vida - vidaMostrada) * dt * 3</code>). A diferença entre as duas aparece em vermelho.</p>
+        </div>
+
+        <!-- 12 -->
+        <div class="passo" id="p-efeitos">
+          <h3>Efeitos visuais de anime</h3>
+          <p class="arquivo">js/jogo.js</p>
+          <p>Pequenos efeitos dão muita "vida" ao jogo:</p>
+          <ul>
+            <li><strong>Partículas:</strong> estrelinhas lançadas em ângulos aleatórios com <code>cos</code>/<code>sin</code> e puxadas pela gravidade. Somem após menos de um segundo.</li>
+            <li><strong>Linhas de velocidade:</strong> triângulos finos saindo do centro, efeito clássico dos mangás.</li>
+            <li><strong>Tremor de tela:</strong> um <code>ctx.translate()</code> aleatório por alguns quadros ao levar dano.</li>
+            <li><strong>Texto com contorno grosso:</strong> <code>strokeText</code> com linha larga e depois <code>fillText</code> por cima.</li>
+            <li><strong>Personagem chibi:</strong> o retrato recortado num círculo (<code>arc</code> + <code>clip</code>) sobre um corpo desenhado com formas arredondadas e sombreamento em duas cores (<em>cel shading</em>).</li>
+            <li><strong>Pétalas de sakura:</strong> elipses que caem balançando com uma senoide.</li>
+          </ul>
+          <div class="bloco-codigo" data-lang="javascript" data-titulo="js/jogo.js"><script type="text/x-codigo">function explodir(x, y, cor, n, vel) {
+  for (let i = 0; i < n; i++) {
+    const a = rand(0, Math.PI * 2);            // direção aleatória
+    const v = rand(vel * 0.3, vel);            // força aleatória
+    jogo.particulas.push({
+      x, y, cor,
+      vx: Math.cos(a) * v,
+      vy: Math.sin(a) * v - 60,                // leve impulso para cima
+      vida: rand(0.4, 0.8), max: 0.8, r: rand(3, 7),
+    });
+  }
+}
+// a cada quadro: move, aplica gravidade, reduz a vida e remove as que acabaram
+for (const p of j.particulas) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 500 * dt; p.vida -= dt; }
+j.particulas = j.particulas.filter((p) => p.vida > 0);</script></div>
+        </div>
+
+        <!-- 13 -->
+        <div class="passo" id="p-som">
+          <h3>Música e efeitos sem arquivos de áudio</h3>
+          <p class="arquivo">js/audio.js</p>
+          <p>A <strong>Web Audio API</strong> gera som a partir de osciladores (ondas quadrada, senoidal, triangular e dente de serra). Cada efeito é uma nota curta com volume que decai rapidamente, o chamado <em>envelope</em>. Notas são convertidas para frequência pela fórmula MIDI: <code>440 × 2<sup>(nota − 69)/12</sup></code>.</p>
+          <div class="bloco-codigo" data-lang="javascript" data-titulo="js/audio.js"><script type="text/x-codigo">const hz = (midi) => 440 * Math.pow(2, (midi - 69) / 12);   // 69 = Lá 440 Hz
+
+function tomEm(t, freq, dur, { tipo = 'square', vol = 0.2, ate = null } = {}) {
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = tipo;
+  o.frequency.setValueAtTime(freq, t);
+  if (ate) o.frequency.exponentialRampToValueAtTime(ate, t + dur);  // "piu" que sobe ou desce
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.005);     // ataque rápido
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);    // decaimento
+  o.connect(g).connect(mestre);
+  o.start(t);
+  o.stop(t + dur + 0.02);
+}
+
+// efeito de pegar item: fica mais agudo conforme o combo cresce
+pegar: (combo) => {
+  const f = hz(72 + Math.min(combo, 12));
+  tom(f, 0.08, { tipo: 'sine', vol: 0.3 });
+  tom(f * 1.5, 0.12, { tipo: 'sine', vol: 0.2, atraso: 0.05 });   // quinta acima
+},</script></div>
+          <p>A <strong>música</strong> é um pequeno sequenciador: a progressão de acordes Lá menor → Fá → Sol → Mi, muito comum em aberturas de anime, tocada em semicolcheias com baixo, arpejo, melodia e bateria sintetizada (bumbo = senoide que cai de 150 para 40 Hz; chimbal = ruído branco filtrado). As notas são <em>agendadas</em> um pouco no futuro com <code>setInterval</code> para o ritmo não atrasar.</p>
+          <div class="atencao"><strong>Regra dos navegadores:</strong> o áudio só pode começar depois de uma interação do usuário, como uma tecla ou um toque. Por isso o <code>AudioContext</code> é criado na primeira tecla ou toque (<code>Som.destravar()</code>).</div>
+        </div>
+
+        <!-- 14 -->
+        <div class="passo" id="p-fases">
+          <h3>Fases e curva de dificuldade</h3>
+          <p class="arquivo">js/jogo.js</p>
+          <p>Cada fase usa um cenário da escola e aumenta a dificuldade de forma gradual e previsível, com fórmulas lineares baseadas no número da fase <code>f</code> (0 a 5):</p>
+          <div class="tabela">
+            <table>
+              <thead><tr><th>Parâmetro</th><th>Fórmula</th><th>Fase 1</th><th>Fase 6</th></tr></thead>
+              <tbody>
+                <tr><td>Intervalo entre itens</td><td><code>max(0.35, 0.85 − 0.1·f)</code> s</td><td>0,85 s</td><td>0,35 s</td></tr>
+                <tr><td>Chance de problema</td><td><code>min(0.55, 0.3 + 0.06·f)</code></td><td>30%</td><td>55%</td></tr>
+                <tr><td>Velocidade de queda</td><td><code>120…180 + 35·f</code> px/s</td><td>~150</td><td>~325</td></tr>
+                <tr><td>Conhecimento por acerto</td><td><code>7 − 0,5·f</code> %</td><td>7%</td><td>4,5%</td></tr>
+                <tr><td>Dano de um problema</td><td><code>18 + 2·f</code></td><td>18</td><td>28</td></tr>
+                <tr><td>Itens em zigue-zague</td><td>a partir da fase 3</td><td>—</td><td>60%</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p style="margin-top:14px">No fim de cada fase entram bônus de tempo restante, de vida e de "PERFEITO" (sem nenhum dano). O recorde fica salvo com <code>localStorage</code>, sempre dentro de um <code>try/catch</code>, porque em janelas anônimas esse acesso pode falhar.</p>
+        </div>
+
+        <!-- 14b -->
+        <div class="passo" id="p-vertical">
+          <h3>Versão para celular em pé (tela vertical)</h3>
+          <p class="arquivo">js/jogo.js</p>
+          <p>No celular, a maioria das pessoas segura o aparelho em pé. Em vez de pedir para girar a tela, o jogo <strong>detecta o formato da janela</strong> e troca a resolução lógica: 1280×720 na horizontal ou 720×1280 na vertical. Como tudo é desenhado nessa escala, cada tela só precisa decidir onde colocar os elementos.</p>
+          <div class="bloco-codigo" data-lang="javascript" data-titulo="js/jogo.js"><script type="text/x-codigo">let W = 1280, H = 720, CHAO = 640, retrato = false;
+
+function definirOrientacao() {
+  retrato = innerHeight > innerWidth * 1.05;      // janela mais alta que larga
+  W = retrato ? 720 : 1280;
+  H = retrato ? 1280 : 720;
+  CHAO = retrato ? 1050 : 640;                    // sobra uma faixa embaixo para os botões
+}
+addEventListener('resize', redimensionar);        // também dispara ao girar o celular</script></div>
+          <ul>
+            <li><strong>Jogo:</strong> o professor fica 30% maior, os balões ganham texto maior e caem 1,6× mais rápido, porque o caminho até o chão é mais longo. Os botões ◀ ▶ ▲ ficam numa faixa própria, abaixo do chão.</li>
+            <li><strong>HUD:</strong> a barra de vida e a de conhecimento ficam empilhadas no topo, com o cronômetro (que também é o botão de pausa) à direita.</li>
+            <li><strong>Seleção:</strong> retrato e nome no alto, painel de habilidades no meio e a grade embaixo. O número de colunas é calculado para deixar os retratos do maior tamanho possível.</li>
+            <li><strong>Textos:</strong> a função <code>texto()</code> ganhou a opção <code>maxW</code>, que encolhe a fonte quando a frase não cabe na largura, como em "FASE CONCLUÍDA!".</li>
+          </ul>
+          <div class="grade g3">
+            <figure class="captura"><img src="assets/tutorial/vertical-titulo.jpg" alt="Tela de título na vertical" loading="lazy"><figcaption>Título com duas faixas de professores</figcaption></figure>
+            <figure class="captura"><img src="assets/tutorial/vertical-selecao.jpg" alt="Tela de seleção na vertical" loading="lazy"><figcaption>Seleção empilhada</figcaption></figure>
+            <figure class="captura"><img src="assets/tutorial/vertical-jogo.jpg" alt="Jogo na vertical com botões de toque" loading="lazy"><figcaption>Jogo com botões abaixo do chão</figcaption></figure>
+          </div>
+          <div class="dica"><strong>Girou no meio da partida?</strong> A função <code>aoGirar()</code> converte a posição do professor e dos balões para a nova escala, e o jogo continua de onde parou. Para testar no computador, abra o jogo com <code>?modo=retrato</code> no endereço.</div>
+        </div>
+
+        <!-- 15 -->
+        <div class="passo" id="p-testes">
+          <h3>Testes automáticos no navegador</h3>
+          <p class="arquivo">Python · Chrome DevTools Protocol</p>
+          <p>Para testar sem clicar manualmente centenas de vezes, um script em Python abre o Chrome <em>headless</em> (sem janela), carrega o jogo, envia teclas, altera o estado por JavaScript (por exemplo, <code>jogo.barra = 100</code> para testar a tela de vitória) e salva capturas de tela. As imagens deste tutorial foram geradas assim.</p>
+          <div class="bloco-codigo" data-lang="python" data-titulo="teste.py (resumo)"><script type="text/x-codigo">chrome = subprocess.Popen(['google-chrome', '--headless=new', '--remote-debugging-port=9333',
+                           '--remote-allow-origins=*', 'about:blank'])
+ws = websocket.create_connection(url_do_devtools)
+
+cmd('Page.navigate', url='http://localhost/GAME_JS_IFPI-INFO-TEAM/index.html')
+time.sleep(3); foto('1_titulo')
+
+tecla('Enter'); time.sleep(0.6)                 # vai para a seleção
+for _ in range(8): tecla('ArrowRight')         # move o cursor
+foto('2_selecao')
+
+js("jogo.barra = 100"); time.sleep(1.5)        # força a vitória da fase
+foto('7_fase_concluida')
+print('Erros de JavaScript:', erros)           # exceções capturadas pelo Runtime</script></div>
+          <div class="dica"><strong>O que os testes pegaram:</strong> textos sobrepostos na tela de seleção, o aviso de combo aparecendo na tela de vitória e o botão "ESCOLHER" cobrindo as disciplinas. Todos esses problemas foram corrigidos antes da publicação.</div>
+        </div>
+
+        <!-- 16 -->
+        <div class="passo" id="p-publicar">
+          <h3>Publicação no GitHub Pages</h3>
+          <p class="arquivo">Git · GitHub CLI</p>
+          <p>Como o jogo é 100% estático (HTML, CSS, JS e imagens), ele pode ser hospedado de graça no GitHub Pages. Não precisa de PHP nem de banco de dados.</p>
+          <div class="bloco-codigo" data-lang="bash" data-titulo="terminal"><script type="text/x-codigo"># .gitignore ancorado na raiz: publica assets/professores/, mas NÃO as fotos originais
+printf "/professores/\n/scene/\n*.pdf\n" > .gitignore
+
+git init -b main
+git add .
+git commit -m "Jogo arcade IFPI Info Team"
+gh repo create ifpi-info-team --public --source=. --push
+
+# ativa o GitHub Pages na branch main
+gh api -X POST repos/USUARIO/ifpi-info-team/pages -f "source[branch]=main" -f "source[path]=/"</script></div>
+          <div class="atencao"><strong>Armadilha real deste projeto:</strong> a primeira versão do <code>.gitignore</code> tinha <code>professores/</code> sem a barra inicial. Essa regra vale para <em>qualquer</em> pasta com esse nome, então <code>assets/professores/</code> também foi ignorada e o site ficou sem retratos. Com <code>/professores/</code>, a regra vale só para a pasta da raiz.</div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="exercicios">
+      <h2>6. Desafios para a turma</h2>
+      <p>Sugestões para praticar a partir do código, da mais simples para a mais difícil:</p>
+      <ol class="exercicios">
+        <li><span class="etiqueta">Fácil</span> Adicione suas próprias palavras em <code>PALAVRAS_BOAS</code> e <code>COISAS_RUINS</code> no <code>dados.js</code>.</li>
+        <li><span class="etiqueta">Fácil</span> Crie um novo poder: por exemplo, <em>"Wi-Fi 5G"</em>, que deixa os itens mais lentos por 5 segundos.</li>
+        <li><span class="etiqueta azul">Médio</span> Implemente um <strong>pulo duplo</strong>: permita um segundo pulo enquanto o personagem estiver no ar.</li>
+        <li><span class="etiqueta azul">Médio</span> Faça os atributos do professor afetarem o jogo (velocidade, altura do pulo, vida extra) e mostre-os como barras na tela de seleção.</li>
+        <li><span class="etiqueta azul">Médio</span> Crie um <strong>ranking</strong> com os 5 melhores recordes e o nome do professor usado, salvo no <code>localStorage</code>.</li>
+        <li><span class="etiqueta rosa">Difícil</span> Adicione um <strong>"chefe" na última fase</strong> (por exemplo, "O Bug Final") que se move pela tela e atira problemas.</li>
+        <li><span class="etiqueta rosa">Difícil</span> Crie um <strong>modo 2 jogadores</strong> no mesmo teclado (A/D/W e setas), com duas barras de conhecimento competindo.</li>
+        <li><span class="etiqueta rosa">Difícil</span> Salve o ranking num <strong>banco MySQL</strong> usando uma API em PHP, integrando o jogo às disciplinas de Back-End e Banco de Dados.</li>
+      </ol>
+    </section>
+
+    <!-- ============================================================ -->
+    <section id="referencias">
+      <h2>7. Referências</h2>
+      <ul>
+        <li><a href="https://developer.mozilla.org/pt-BR/docs/Web/API/Canvas_API/Tutorial">MDN: Tutorial de Canvas (pt-BR)</a></li>
+        <li><a href="https://developer.mozilla.org/pt-BR/docs/Web/API/Window/requestAnimationFrame">MDN: requestAnimationFrame</a></li>
+        <li><a href="https://developer.mozilla.org/pt-BR/docs/Web/API/Web_Audio_API">MDN: Web Audio API</a></li>
+        <li><a href="https://developer.mozilla.org/en-US/docs/Games/Techniques/2D_collision_detection">MDN: 2D collision detection</a></li>
+        <li><a href="https://developer.mozilla.org/pt-BR/docs/Games/Anatomy">MDN: Anatomia de um videogame (game loop)</a></li>
+        <li><a href="https://github.com/bryandlee/animegan2-pytorch">AnimeGAN2 (PyTorch), modelo de rostos</a> · <a href="https://github.com/TachibanaYoshino/AnimeGANv3">AnimeGANv3, modelos de paisagem</a></li>
+        <li><a href="https://docs.github.com/pt/pages">Documentação do GitHub Pages</a></li>
+        <li><a href="https://github.com/RobsonPiresCAFLO/ifpi-info-team">Código-fonte completo deste jogo</a></li>
+      </ul>
+    </section>
+  </main>
+</div>
+
+<footer>
+  <div class="creditos">
+    <div><span>Autor</span><strong>prof. Me. Robson Pires Borges</strong></div>
+    <div><span>Coautoria</span><strong>Inteligência Artificial · Claude (Anthropic)</strong></div>
+  </div>
+  IFPI Floriano Info Team · Quadro de Professores de Informática · IFPI Campus Floriano<br>
+  <a href="index.html">Jogar</a> · <a href="https://github.com/RobsonPiresCAFLO/ifpi-info-team">Código no GitHub</a>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+'use strict';
+
+// ---------- Blocos de código: monta <pre>, colore e adiciona botão "copiar" ----------
+document.querySelectorAll('.bloco-codigo').forEach((bloco) => {
+  const fonte = bloco.querySelector('script[type="text/x-codigo"]');
+  const codigo = fonte.textContent.replace(/<\\\//g, '</').replace(/^\n/, '');
+  const lang = bloco.dataset.lang || 'plaintext';
+  bloco.innerHTML = '';
+  const cab = document.createElement('div');
+  cab.className = 'cab';
+  cab.innerHTML = `<span></span><button type="button">copiar</button>`;
+  cab.querySelector('span').textContent = bloco.dataset.titulo || lang;
+  const pre = document.createElement('pre');
+  const code = document.createElement('code');
+  code.className = `language-${lang}`;
+  code.textContent = codigo;
+  pre.appendChild(code);
+  bloco.append(cab, pre);
+  if (window.hljs && lang !== 'plaintext') hljs.highlightElement(code);
+  else code.classList.add('hljs');
+  const botao = cab.querySelector('button');
+  botao.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(codigo);
+      botao.textContent = 'copiado!';
+    } catch {
+      botao.textContent = 'erro';
+    }
+    setTimeout(() => { botao.textContent = 'copiar'; }, 1500);
+  });
+});
+
+// ---------- Tema claro/escuro ----------
+const raiz = document.documentElement;
+const sistemaClaro = matchMedia('(prefers-color-scheme: light)');
+const temaAtual = () => raiz.dataset.theme || (sistemaClaro.matches ? 'light' : 'dark');
+const aplicarClasse = () => raiz.classList.toggle('tema-claro', temaAtual() === 'light');
+aplicarClasse();
+sistemaClaro.addEventListener('change', aplicarClasse);
+document.getElementById('alternarTema').addEventListener('click', () => {
+  const novo = temaAtual() === 'light' ? 'dark' : 'light';
+  raiz.dataset.theme = novo;
+  try { localStorage.setItem('ifpi-tutorial-tema', novo); } catch { /* sem storage */ }
+  aplicarClasse();
+});
+
+// ---------- Sumário: destaca a seção visível ----------
+const links = [...document.querySelectorAll('nav.sumario a')];
+const alvos = links.map((a) => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+const observador = new IntersectionObserver((entradas) => {
+  entradas.forEach((e) => {
+    if (!e.isIntersecting) return;
+    links.forEach((a) => a.classList.toggle('ativo', a.getAttribute('href') === `#${e.target.id}`));
+  });
+}, { rootMargin: '-20% 0px -70% 0px' });
+alvos.forEach((a) => observador.observe(a));
+
+// ---------- Utilidades das demos ----------
+function coordenadas(canvas, e) {
+  const r = canvas.getBoundingClientRect();
+  return { x: (e.clientX - r.left) * canvas.width / r.width, y: (e.clientY - r.top) * canvas.height / r.height };
+}
+function desenharBoneco(ctx, x, y, cor = '#3d348b', piscar = false) {
+  if (piscar) return;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = '#15132b';
+  ctx.fillStyle = '#2a2d4a';
+  ctx.fillRect(-14, -30, 11, 30); ctx.strokeRect(-14, -30, 11, 30);
+  ctx.fillRect(3, -30, 11, 30); ctx.strokeRect(3, -30, 11, 30);
+  ctx.fillStyle = cor;
+  ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-22, -72, 44, 44, 12) : ctx.rect(-22, -72, 44, 44); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#ffe0c2';
+  ctx.beginPath(); ctx.arc(0, -100, 30, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#15132b';
+  ctx.beginPath(); ctx.arc(-10, -102, 4, 0, Math.PI * 2); ctx.arc(10, -102, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(0, -92, 8, 0.2, Math.PI - 0.2); ctx.stroke();
+  ctx.restore();
+}
+
+// ---------- Demo 1: física do pulo ----------
+(() => {
+  const cv = document.getElementById('demoFisica');
+  const ctx = cv.getContext('2d');
+  const chao = 320;
+  const gIn = document.getElementById('dGravidade'), iIn = document.getElementById('dImpulso');
+  const gOut = document.getElementById('oGravidade'), iOut = document.getElementById('oImpulso');
+  const leitura = document.getElementById('leituraFisica');
+  const p = { x: 90, y: chao, vx: 0, vy: 0, noChao: true };
+  let rastro = [];
+  let ultimo = performance.now();
+  let visivel = false;
+
+  const pular = () => {
+    if (!p.noChao) return;
+    p.vy = -Number(iIn.value);
+    p.vx = 240;
+    p.noChao = false;
+    rastro = [];
+  };
+  cv.addEventListener('pointerdown', (e) => { e.preventDefault(); cv.focus(); pular(); });
+  cv.addEventListener('keydown', (e) => { if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); pular(); } });
+  [gIn, iIn].forEach((el) => el.addEventListener('input', () => { gOut.textContent = gIn.value; iOut.textContent = iIn.value; }));
+  new IntersectionObserver(([e]) => { visivel = e.isIntersecting; }).observe(cv);
+
+  function passo(agora) {
+    const dt = Math.min(0.05, (agora - ultimo) / 1000);
+    ultimo = agora;
+    if (visivel) {
+      const g = Number(gIn.value);
+      if (!p.noChao) {
+        p.vy += g * dt;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        rastro.push({ x: p.x, y: p.y });
+        if (p.y >= chao) { p.y = chao; p.vy = 0; p.vx = 0; p.noChao = true; }
+      } else if (p.x > 620) {
+        p.x = 90;
+      }
+      const alturaMax = Math.pow(Number(iIn.value), 2) / (2 * g);
+
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      ctx.fillStyle = '#0d0826';
+      ctx.fillRect(0, 0, cv.width, cv.height);
+      ctx.strokeStyle = 'rgba(255,255,255,.08)';
+      for (let y = chao; y > 0; y -= 50) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cv.width, y); ctx.stroke(); }
+      ctx.strokeStyle = '#7dffb3';
+      ctx.setLineDash([6, 6]);
+      const yMax = chao - alturaMax;
+      if (yMax > 0) {
+        ctx.beginPath(); ctx.moveTo(0, yMax); ctx.lineTo(cv.width, yMax); ctx.stroke();
+        ctx.fillStyle = '#7dffb3';
+        ctx.font = '600 13px "JetBrains Mono", monospace';
+        ctx.fillText(`altura máx. dos pés ≈ ${Math.round(alturaMax)} px`, cv.width - 270, yMax - 6);
+      }
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#ffd166';
+      rastro.forEach((r, i) => { if (i % 2 === 0) { ctx.beginPath(); ctx.arc(r.x, r.y, 3, 0, Math.PI * 2); ctx.fill(); } });
+      ctx.fillStyle = 'rgba(255,255,255,.35)';
+      ctx.fillRect(0, chao, cv.width, 2);
+      desenharBoneco(ctx, p.x, p.y);
+      ctx.fillStyle = '#b9b1e0';
+      ctx.font = '600 14px "M PLUS Rounded 1c", sans-serif';
+      if (p.noChao) ctx.fillText('clique ou aperte Espaço para pular', 14, 24);
+      leitura.textContent = `vy = ${Math.round(p.vy)} px/s   •   y = ${Math.round(chao - p.y)} px acima do chão   •   noChao = ${p.noChao}`;
+    }
+    requestAnimationFrame(passo);
+  }
+  requestAnimationFrame(passo);
+})();
+
+// ---------- Demo 2: colisão AABB ----------
+(() => {
+  const cv = document.getElementById('demoColisao');
+  const ctx = cv.getContext('2d');
+  const leitura = document.getElementById('leituraColisao');
+  const chao = 270;
+  const jog = { x: 230 };
+  const hb = { x1: jog.x - 38, x2: jog.x + 38, y1: chao - 135, y2: chao };
+  const it = { x: 90, y: 70, w: 120, h: 44 };
+  let arrastando = false;
+
+  cv.addEventListener('pointerdown', (e) => { arrastando = true; cv.setPointerCapture(e.pointerId); mover(e); });
+  cv.addEventListener('pointermove', (e) => { if (arrastando) mover(e); });
+  cv.addEventListener('pointerup', () => { arrastando = false; });
+  function mover(e) {
+    const c = coordenadas(cv, e);
+    it.x = c.x; it.y = c.y;
+    desenhar();
+  }
+
+  function desenhar() {
+    const conds = [
+      ['direita do item > esquerda do corpo', it.x + it.w / 2 > hb.x1],
+      ['esquerda do item < direita do corpo', it.x - it.w / 2 < hb.x2],
+      ['base do item > topo do corpo', it.y + it.h / 2 > hb.y1],
+      ['topo do item < base do corpo', it.y - it.h / 2 < hb.y2],
+    ];
+    const colide = conds.every(([, v]) => v);
+
+    ctx.fillStyle = '#0d0826';
+    ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.fillStyle = 'rgba(255,255,255,.35)';
+    ctx.fillRect(0, chao, cv.width, 2);
+    desenharBoneco(ctx, jog.x, chao, colide ? '#c9184a' : '#3d348b');
+
+    ctx.setLineDash([6, 5]);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = colide ? '#ff5c7a' : '#7dd3fc';
+    ctx.strokeRect(hb.x1, hb.y1, hb.x2 - hb.x1, hb.y2 - hb.y1);
+    ctx.setLineDash([]);
+
+    ctx.save();
+    ctx.shadowColor = colide ? '#ff4d6d' : '#4dffa0';
+    ctx.shadowBlur = 16;
+    ctx.fillStyle = colide ? '#ff8fa3' : '#9ff5c6';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(it.x - it.w / 2, it.y - it.h / 2, it.w, it.h, 22); else ctx.rect(it.x - it.w / 2, it.y - it.h / 2, it.w, it.h);
+    ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle = colide ? '#c9184a' : '#10a35a';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.fillStyle = '#063d22';
+    ctx.font = '800 18px "M PLUS Rounded 1c", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('SQL', it.x, it.y + 1);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+
+    ctx.font = '600 13px "JetBrains Mono", monospace';
+    conds.forEach(([t, v], i) => {
+      ctx.fillStyle = v ? '#7dffb3' : '#ff5c7a';
+      ctx.fillText(`${v ? '✔' : '✘'} ${t}`, 420, 40 + i * 24);
+    });
+    ctx.font = '400 30px Bangers, sans-serif';
+    ctx.fillStyle = colide ? '#ffd166' : '#b9b1e0';
+    ctx.fillText(colide ? 'COLISÃO!' : 'sem colisão', 420, 160);
+    leitura.textContent = `item: x=${Math.round(it.x)} y=${Math.round(it.y)}   •   corpo: x ${hb.x1}…${hb.x2}, y ${hb.y1}…${hb.y2}`;
+  }
+  document.fonts?.ready.then(desenhar);
+  desenhar();
+})();
+</script>
+</body>
+</html>
