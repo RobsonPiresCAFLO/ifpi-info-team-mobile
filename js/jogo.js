@@ -71,8 +71,10 @@ let recorde = lerRecorde();
 let escala = 1;
 var prontoParaGirar = false;   // só reposiciona objetos depois que o jogo carregou
 function definirOrientacao() {
+  // digitando o apelido: o teclado do celular encolhe a janela, mas a tela não deve girar
+  if (prontoParaGirar && document.activeElement?.id === 'campo-nome') return;
   const antes = retrato;
-  retrato = MODO_FORCADO === 'retrato' || (MODO_FORCADO !== 'paisagem' && innerHeight > innerWidth * 1.05);
+  retrato =MODO_FORCADO === 'retrato' || (MODO_FORCADO !== 'paisagem' && innerHeight > innerWidth * 1.05);
   const W0 = W;
   W = retrato ? 720 : 1280;
   H = retrato ? 1280 : 720;
@@ -124,6 +126,11 @@ const MAPA = {
 };
 
 addEventListener('keydown', (e) => {
+  if (e.target === campoNome) return;            // digitando o apelido: o jogo ignora as teclas
+  if (tela === 'registro' && e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+    campoNome.focus();                           // começou a digitar fora do campo: leva para ele
+    return;
+  }
   if (!teclas.has(e.code)) apertadas.add(e.code);
   teclas.add(e.code);
   if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault();
@@ -160,9 +167,19 @@ canvas.addEventListener('pointerdown', (e) => {
   cliques.push(p);
   Som.destravar();
 });
+// Rolagem das listas do ranking: roda do mouse e arraste com o dedo/mouse ({ x, y, dy }).
+const rolagens = [];
 canvas.addEventListener('pointermove', (e) => {
-  if (ponteiros.has(e.pointerId)) ponteiros.set(e.pointerId, paraCanvas(e));
+  if (!ponteiros.has(e.pointerId)) return;
+  const antes = ponteiros.get(e.pointerId), p = paraCanvas(e);
+  if (tela === 'ranking') rolagens.push({ x: antes.x, y: antes.y, dy: antes.y - p.y });
+  ponteiros.set(e.pointerId, p);
 });
+canvas.addEventListener('wheel', (e) => {
+  if (tela !== 'ranking') return;
+  e.preventDefault();
+  rolagens.push({ ...paraCanvas(e), dy: e.deltaY * (e.deltaMode === 1 ? 40 : 1) });
+}, { passive: false });
 for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) {
   canvas.addEventListener(ev, (e) => ponteiros.delete(e.pointerId));
 }
@@ -203,7 +220,7 @@ let tTela = 0;
 function irPara(nova) {
   tela = nova;
   tTela = 0;
-  const trilha = { titulo: 'titulo', selecao: 'selecao', intro: 'jogo', jogando: 'jogo', final: 'titulo' }[nova];
+  const trilha = { titulo: 'titulo', selecao: 'selecao', intro: 'jogo', jogando: 'jogo', final: 'titulo', registro: 'titulo', ranking: 'titulo' }[nova];
   if (trilha !== undefined) Som.musica(trilha);
   else if (['ko', 'continuar', 'gameover', 'faseConcluida', 'tempoEsgotado'].includes(nova)) Som.musica(null);
 }
@@ -278,12 +295,19 @@ function atualizar(dt) {
       break;
     case 'continuar': atualizarContinuar(); break;
     case 'gameover': if (tTela > 3.5 || (tTela > 1 && confirmou())) irPara('titulo'); break;
-    case 'final': if (tTela > 5 && confirmou()) irPara('titulo'); break;
+    case 'final': atualizarFinal(); break;
+    case 'registro': atualizarRegistro(); break;
+    case 'ranking': atualizarRanking(dt); break;
   }
 }
 
+const BOTAO_RANKING = { x: 0, y: 0, w: 220, h: 58 };
 function atualizarTitulo() {
-  if (tTela > 0.3 && confirmou()) {
+  Object.assign(BOTAO_RANKING, { x: W - 240, y: retrato ? 30 : 20 });
+  if (Ranking.ativo && tTela > 0.3 && (apertou(['KeyR']) || clicouEm(BOTAO_RANKING.x, BOTAO_RANKING.y, BOTAO_RANKING.w, BOTAO_RANKING.h))) {
+    Som.confirmar();
+    abrirRanking('titulo');
+  } else if (tTela > 0.3 && confirmou()) {
     Som.confirmar();
     selecaoConfirmada = false;
     irPara('selecao');
@@ -363,6 +387,7 @@ function atualizarSelecao() {
     selecaoConfirmada = true;
     tTela = 0;
     Som.confirmar();
+    Ranking.registrarEscolha(PROFESSORES[sel].nome);
   } else if (apertou(VOLTA)) {
     Som.voltar();
     irPara('titulo');
@@ -542,6 +567,7 @@ function concluirFase() {
   const bonusVida = Math.ceil(j.vida) * 20;
   const perfeito = !j.levouDano;
   j.bonus = { bonusTempo, bonusVida, perfeito };
+  j.maiorCombo = Math.max(j.maiorCombo || 0, j.maxCombo);   // da partida inteira (vai para o ranking)
   j.pontos += bonusTempo + bonusVida + (perfeito ? 5000 : 0);
   for (const it of j.itens) explodir(it.x, it.y, it.tipo === 'ruim' ? '#ff4d6d' : '#7dffb3', 10, 240);
   j.itens = [];
@@ -582,6 +608,153 @@ function atualizarContinuar() {
   } else if (restante <= 0) {
     salvarRecorde(jogo.pontos);
     irPara('gameover');
+  }
+}
+
+// ---------- Final: parabéns → registro no ranking → ranking → quadro de professores ----------
+// Depois do registro, a tela final volta direto para o quadro (pula os 5 s do "PARABÉNS!").
+const tFinal = () => tTela + (jogo.registro ? 5 : 0);
+function atualizarFinal() {
+  if (Ranking.ativo && !jogo.registro) {
+    if (tTela > 4.5) abrirRegistro();
+  } else if (tFinal() > 5 && confirmou()) irPara('titulo');
+}
+
+// Campo HTML por cima do canvas: assim o teclado do celular abre normalmente.
+const campoNome = document.createElement('input');
+Object.assign(campoNome, { id: 'campo-nome', type: 'text', maxLength: 16, placeholder: 'Seu nome ou apelido', autocomplete: 'off', spellcheck: false });
+campoNome.setAttribute('enterkeyhint', 'send');
+campoNome.setAttribute('aria-label', 'Seu nome ou apelido para o ranking');
+document.body.appendChild(campoNome);
+campoNome.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); enviarRegistro(); }
+  else if (e.key === 'Escape') campoNome.blur();
+});
+
+// Converte um retângulo da tela lógica (1280×720 ou 720×1280) para a posição real na página.
+function posicionarCampo(c) {
+  const r = canvas.getBoundingClientRect(), s = r.width / W;
+  Object.assign(campoNome.style, {
+    left: `${r.left + c.x * s}px`, top: `${r.top + c.y * s}px`,
+    width: `${c.w * s}px`, height: `${c.h * s}px`,
+    fontSize: `${Math.max(16, c.h * 0.42 * s)}px`, borderWidth: `${Math.max(2, 4 * s)}px`,
+  });
+}
+function mostrarCampo(sim) {
+  campoNome.style.display = sim ? 'block' : 'none';
+  if (!sim) campoNome.blur();
+}
+
+function layoutRegistro() {
+  return retrato
+    ? { campo: { x: 70, y: 250, w: W - 140, h: 80 }, enviar: { x: W / 2 - 250, y: 395, w: 240, h: 76 }, pular: { x: W / 2 + 10, y: 395, w: 240, h: 76 }, msgY: 368 }
+    : { campo: { x: 540, y: 245, w: 620, h: 72 }, enviar: { x: 540, y: 365, w: 300, h: 66 }, pular: { x: 860, y: 365, w: 300, h: 66 }, msgY: 346 };
+}
+
+function abrirRegistro() {
+  jogo.registro = { status: 'digitando', msg: '' };
+  campoNome.value = Ranking.ultimoApelido();
+  campoNome.disabled = false;
+  irPara('registro');
+  mostrarCampo(true);
+  posicionarCampo(layoutRegistro().campo);
+  if (!modoToque) campoNome.focus();
+}
+
+function atualizarRegistro() {
+  const r = jogo.registro, L = layoutRegistro();
+  posicionarCampo(L.campo);
+  if (r.status === 'enviando') return;
+  if (r.status === 'offline') {
+    if (tTela > 0.5 && confirmou()) irPara('final');
+    return;
+  }
+  if (apertou(['Enter', 'NumpadEnter']) || clicouEm(L.enviar.x, L.enviar.y, L.enviar.w, L.enviar.h)) enviarRegistro();
+  else if (apertou(['Escape']) || clicouEm(L.pular.x, L.pular.y, L.pular.w, L.pular.h)) {
+    Som.voltar();
+    abrirRanking('final');
+  }
+}
+
+async function enviarRegistro() {
+  const r = jogo.registro;
+  if (tela !== 'registro' || r.status !== 'digitando') return;
+  const apelido = Ranking.limparApelido(campoNome.value);
+  campoNome.value = apelido;
+  const erro = Ranking.validarApelido(apelido);
+  if (erro) {
+    r.msg = erro;
+    Som.voltar();
+    return;
+  }
+  r.status = 'enviando';
+  r.msg = 'Enviando…';
+  campoNome.blur();
+  campoNome.disabled = true;
+  Som.confirmar();
+  const resp = await Ranking.enviarPontuacao({ apelido, professor: prof().nome, pontos: jogo.pontos, maxCombo: jogo.maiorCombo || 0 });
+  campoNome.disabled = false;
+  if (tela !== 'registro') return;
+  if (resp.ok) {
+    abrirRanking('final', { apelido, pontos: Math.floor(jogo.pontos), posicao: resp.posicao });
+  } else if (resp.offline) {
+    r.status = 'offline';
+    r.msg = 'Sem internet: sua pontuação foi guardada e será enviada quando o jogo abrir de novo.';
+    mostrarCampo(false);
+  } else {
+    r.status = 'digitando';
+    r.msg = resp.erro || 'Não foi possível registrar. Tente de novo.';
+  }
+}
+
+// ---------- Ranking: jogadores que zeraram (esquerda/topo) + personagens mais escolhidos ----------
+let rk = null;   // { origem, dados, erro, eu, rol: { jog, per } }
+function abrirRanking(origem, eu = null) {
+  mostrarCampo(false);
+  const estado = { origem, eu, dados: null, erro: '', rol: { jog: { atual: 0, alvo: 0 }, per: { atual: 0, alvo: 0 } } };
+  rk = estado;
+  irPara('ranking');
+  Ranking.carregar().then((d) => {
+    if (rk !== estado) return;
+    estado.dados = d;
+    // desce a lista até a linha do jogador que acabou de registrar
+    const i = eu ? d.jogadores.findIndex((p) => p.apelido === eu.apelido && p.pontos === eu.pontos) : -1;
+    const L = layoutRanking();
+    if (i >= 0) estado.rol.jog.alvo = i * L.linhaJog - (L.jog.h - L.topo) / 2 + L.linhaJog / 2;
+  }).catch(() => {
+    if (rk === estado) estado.erro = 'Não foi possível carregar o ranking. Verifique a internet.';
+  });
+}
+
+function layoutRanking() {
+  return retrato
+    ? { jog: { x: 20, y: 140, w: W - 40, h: 640 }, per: { x: 20, y: 805, w: W - 40, h: 345 }, voltar: { x: W / 2 - 150, y: 1170, w: 300, h: 70 }, topo: 62, linhaJog: 68, linhaPer: 60 }
+    : { jog: { x: 24, y: 100, w: 800, h: 528 }, per: { x: 848, y: 100, w: 408, h: 528 }, voltar: { x: W / 2 - 130, y: 642, w: 260, h: 60 }, topo: 62, linhaJog: 64, linhaPer: 60 };
+}
+const dentro = (p, r) => p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
+
+function atualizarRanking(dt) {
+  const L = layoutRanking();
+  for (const r of rolagens) {
+    if (dentro(r, L.jog)) rk.rol.jog.alvo += r.dy;
+    else if (dentro(r, L.per)) rk.rol.per.alvo += r.dy;
+  }
+  const desce = teclas.has('ArrowDown') || teclas.has('KeyS'), sobe = teclas.has('ArrowUp') || teclas.has('KeyW');
+  rk.rol.jog.alvo += (desce - sobe) * 700 * dt;
+  if (apertou(['PageDown'])) rk.rol.jog.alvo += L.jog.h - L.topo;
+  if (apertou(['PageUp'])) rk.rol.jog.alvo -= L.jog.h - L.topo;
+  if (apertou(['Home'])) rk.rol.jog.alvo = 0;
+  const d = rk.dados;
+  const total = { jog: d ? d.jogadores.length * L.linhaJog : 0, per: d ? d.personagens.length * L.linhaPer : 0 };
+  for (const k of ['jog', 'per']) {
+    const r = rk.rol[k];
+    r.alvo = limitar(r.alvo, 0, Math.max(0, total[k] - (L[k].h - L.topo - 10)));
+    r.atual += (r.alvo - r.atual) * Math.min(1, dt * 12);
+  }
+  if (tTela > 0.4 && (apertou(['Enter', 'NumpadEnter', 'Escape', 'Backspace', 'KeyJ']) || clicouEm(L.voltar.x, L.voltar.y, L.voltar.w, L.voltar.h))) {
+    Som.voltar();
+    if (rk.origem === 'final') irPara('final');
+    else irPara('titulo');
   }
 }
 
@@ -912,6 +1085,8 @@ function desenhar() {
     case 'continuar': desenharCena(); desenharContinuar(); break;
     case 'gameover': desenharGameOver(); break;
     case 'final': desenharFinal(dt); break;
+    case 'registro': desenharRegistro(dt); break;
+    case 'ranking': desenharRanking(dt); break;
   }
 
   texto(Som.mudo ? '🔇 M' : '🔊 M', W - 12, H - 12, { tam: 14, alinha: 'right', cor: 'rgba(255,255,255,0.6)', contorno: null, sombra: false });
@@ -980,6 +1155,11 @@ function desenharTitulo(dt) {
 
   if (t > 0.8 && pisca(1.2)) {
     texto(modoToque ? 'TOQUE PARA JOGAR' : 'APERTE ENTER PARA JOGAR', W / 2, retrato ? 1080 : 630, { tam: retrato ? 56 : 44, fonte: FONTE_TITULO, alinha: 'center', cor: '#fff', contorno: '#ff3d7f', espessura: 8, maxW: W - 40 });
+  }
+  if (Ranking.ativo) {
+    const b = BOTAO_RANKING;
+    botao('🏆 RANKING', b.x, b.y, b.w, b.h, '#ff9e00');
+    if (!modoToque) texto('tecla R', b.x + b.w / 2, b.y + b.h + 22, { tam: 15, alinha: 'center', cor: 'rgba(255,255,255,0.75)', contorno: null });
   }
   texto(`RECORDE  ${zeros(recorde)}`, 24, H - 20, { tam: 18, cor: '#ffd166' });
   texto('CRÉDITOS ∞', W / 2, H - 20, { tam: 18, alinha: 'center', cor: '#ffffffaa' });
@@ -1460,9 +1640,192 @@ function desenharGameOver() {
   texto(`RECORDE  ${zeros(recorde)}`, W / 2, 520 + dy(), { tam: 30, fonte: FONTE_TITULO, alinha: 'center' });
 }
 
+// ---------- Registro no ranking (quem zerou o jogo) ----------
+function desenharRegistro(dt) {
+  const r = jogo.registro, L = layoutRegistro(), c = L.campo, cx = c.x + c.w / 2;
+  fundoNoturno();
+  linhasDeVelocidade(retrato ? W / 2 : 260, retrato ? 860 : 420, 'rgba(255,230,120,0.07)', 60, 160);
+  desenharPetalas(dt);
+  // o professor que zerou o jogo: embaixo (vertical) ou à esquerda (horizontal)
+  if (retrato) {
+    desenharProfessor(escolhido, W / 2, 1010, { escalaP: 2.1 });
+    texto(`${prof().nome} concluiu o semestre!`, W / 2, 1075, { tam: 30, alinha: 'center', maxW: W - 40 });
+  } else {
+    desenharProfessor(escolhido, 260, 600, { escalaP: 1.9 });
+    texto(`${prof().nome} concluiu o semestre!`, 260, 660, { tam: 24, alinha: 'center', maxW: 470 });
+  }
+  texto('ENTRE PARA O RANKING!', cx, retrato ? 95 : 90, { tam: retrato ? 64 : 66, fonte: FONTE_TITULO, alinha: 'center', cor: gradiente(40, 95, [[0, '#fff6a8'], [1, '#ffb703']]), contorno: '#1a0b3b', espessura: 10, maxW: retrato ? W - 30 : 700 });
+  texto(`PONTOS  ${zeros(jogo.pontos)}`, cx, 162, { tam: 40, fonte: FONTE_TITULO, alinha: 'center', cor: '#ffd166' });
+  if (r.status !== 'offline') texto('Digite seu nome ou apelido:', cx, c.y - 16, { tam: 24, alinha: 'center' });
+
+  if (r.msg) {
+    ctx.font = `800 20px ${FONTE_TEXTO}`;
+    const linhas = quebrarLinhas(r.msg, c.w + 40);
+    const y0 = r.status === 'offline' ? c.y + 20 : L.msgY - (linhas.length - 1) * 12;
+    linhas.forEach((ln, k) => texto(ln, cx, y0 + k * 26, { tam: 20, alinha: 'center', cor: r.status === 'digitando' ? '#ff8fa3' : '#7dd3fc', contorno: '#10102a', espessura: 4 }));
+  }
+  if (r.status === 'offline') {
+    if (pisca(1.2)) texto(modoToque ? 'Toque para continuar' : 'ENTER para continuar', cx, L.enviar.y + 40, { tam: 26, alinha: 'center' });
+    return;
+  }
+  ctx.globalAlpha = r.status === 'enviando' ? 0.5 : 1;
+  botao('ENVIAR ✔', L.enviar.x, L.enviar.y, L.enviar.w, L.enviar.h, '#2fbf71');
+  botao('PULAR', L.pular.x, L.pular.y, L.pular.w, L.pular.h, '#6c757d');
+  ctx.globalAlpha = 1;
+  if (!modoToque) texto('ENTER envia   •   ESC pula', cx, L.enviar.y + L.enviar.h + 34, { tam: 17, alinha: 'center', cor: 'rgba(255,255,255,0.75)', contorno: null, sombra: false });
+}
+
+// ---------- Ranking ----------
+const MEDALHAS = ['#ffd166', '#d6dde6', '#e0a46b'];   // ouro, prata, bronze
+const indiceProf = (nome) => PROFESSORES.findIndex((p) => p.nome === nome);
+
+function rostoNoCirculo(indice, cx, cy, raio, borda = '#fff') {
+  const img = imgProf[indice];
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, raio, 0, Math.PI * 2);
+  ctx.fillStyle = indice >= 0 ? PROFESSORES[indice].cor : '#333';
+  ctx.fill();
+  ctx.clip();
+  if (img) ctx.drawImage(img, ...rosto(img), cx - raio, cy - raio, raio * 2, raio * 2);
+  ctx.restore();
+  ctx.beginPath();
+  ctx.arc(cx, cy, raio, 0, Math.PI * 2);
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = borda;
+  ctx.stroke();
+}
+
+function posicaoNoRanking(i, cx, cy, tam) {
+  if (i < 3) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, tam * 0.8, 0, Math.PI * 2);
+    ctx.fillStyle = MEDALHAS[i];
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#1a0b3b';
+    ctx.stroke();
+    texto(String(i + 1), cx, cy + 2, { tam, fonte: FONTE_TITULO, alinha: 'center', base: 'middle', cor: '#1a0b3b', contorno: null, sombra: false });
+  } else {
+    texto(`${i + 1}º`, cx, cy, { tam: tam * 0.85, alinha: 'center', base: 'middle', cor: '#fff', espessura: 4 });
+  }
+}
+
+function fundoLinha(x, y, w, h, i, cor = null) {
+  caminhoArredondado(x, y + 3, w, h - 6, 14);
+  ctx.fillStyle = cor || (i < 3 ? 'rgba(255,209,102,0.13)' : i % 2 ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.08)');
+  ctx.fill();
+}
+
+function linhaJogador(p, i, x, y, w, h) {
+  const eu = rk.eu && p.apelido === rk.eu.apelido && p.pontos === rk.eu.pontos;
+  const meio = y + h / 2;
+  fundoLinha(x, y, w, h, i, eu ? `rgba(125,255,179,${pisca(1.5) ? 0.3 : 0.18})` : null);
+  if (eu) {
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#7dffb3';
+    ctx.stroke();
+  }
+  posicaoNoRanking(i, x + 34, meio, 26);
+  rostoNoCirculo(indiceProf(p.professor), x + 92, meio, h * 0.36, i < 3 ? MEDALHAS[i] : '#fff');
+  const tx = x + 128, larg = w - (tx - x) - 150;
+  texto(p.apelido, tx, meio - 3, { tam: 26, cor: eu ? '#7dffb3' : '#fff', maxW: larg });
+  texto(p.professor, tx, meio + 20, { tam: 15, cor: '#ffc2d4', contorno: null, sombra: false, maxW: larg });
+  texto(zeros(p.pontos), x + w - 14, meio + 12, { tam: 32, fonte: FONTE_TITULO, alinha: 'right', cor: i < 3 ? MEDALHAS[i] : '#ffd166' });
+}
+
+function linhaPersonagem(p, i, x, y, w, h) {
+  const meio = y + h / 2, maior = rk.dados.personagens[0].escolhas || 1;
+  const idx = indiceProf(p.professor);
+  fundoLinha(x, y, w, h, i);
+  posicaoNoRanking(i, x + 26, meio, 20);
+  rostoNoCirculo(idx, x + 72, meio, h * 0.36, i < 3 ? MEDALHAS[i] : '#fff');
+  const tx = x + 104, larg = w - (tx - x) - 74;
+  texto(p.professor, tx, meio - 6, { tam: 19, maxW: larg });
+  caminhoArredondado(tx, meio + 6, larg, 10, 5);
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  ctx.fill();
+  caminhoArredondado(tx, meio + 6, Math.max(10, larg * p.escolhas / maior), 10, 5);
+  ctx.fillStyle = idx >= 0 ? PROFESSORES[idx].cor : '#7dd3fc';
+  ctx.fill();
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+  ctx.stroke();
+  texto(String(p.escolhas), x + w - 12, meio + 4, { tam: 28, fonte: FONTE_TITULO, alinha: 'right', cor: '#7dd3fc' });
+  texto(p.escolhas === 1 ? 'partida' : 'partidas', x + w - 12, meio + 21, { tam: 12, alinha: 'right', cor: 'rgba(255,255,255,0.75)', contorno: null, sombra: false });
+}
+
+function painelRanking(r, destaque) {
+  ctx.save();
+  if (destaque) {
+    ctx.shadowColor = '#ffb703';
+    ctx.shadowBlur = 30;
+  }
+  caminhoArredondado(r.x, r.y, r.w, r.h, 22);
+  ctx.fillStyle = destaque ? 'rgba(34, 16, 78, 0.92)' : 'rgba(12, 10, 40, 0.78)';
+  ctx.fill();
+  ctx.restore();
+  caminhoArredondado(r.x, r.y, r.w, r.h, 22);
+  ctx.lineWidth = destaque ? 4 : 2;
+  ctx.strokeStyle = destaque ? '#ffd166' : 'rgba(255,255,255,0.45)';
+  ctx.stroke();
+}
+
+// Lista com rolagem: desenha só as linhas visíveis, recortadas dentro do painel.
+function listaRolavel(r, topo, alturaLinha, rol, itens, desenharLinha, vazio) {
+  const area = { x: r.x + 10, y: r.y + topo, w: r.w - 20, h: r.h - topo - 10 };
+  if (!itens.length) {
+    ctx.font = `800 20px ${FONTE_TEXTO}`;
+    quebrarLinhas(vazio, r.w - 40).forEach((ln, k) => texto(ln, r.x + r.w / 2, area.y + 60 + k * 28, { tam: 20, alinha: 'center', cor: '#ffc2d4', contorno: null }));
+    return;
+  }
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(area.x, area.y, area.w, area.h);
+  ctx.clip();
+  const ini = Math.max(0, Math.floor(rol / alturaLinha)), fim = Math.min(itens.length, Math.ceil((rol + area.h) / alturaLinha));
+  for (let i = ini; i < fim; i++) desenharLinha(itens[i], i, area.x, area.y + i * alturaLinha - rol, area.w - 14, alturaLinha);
+  ctx.restore();
+  const total = itens.length * alturaLinha;
+  if (total > area.h) {                          // barra de rolagem
+    const bh = Math.max(40, area.h * area.h / total), by = area.y + (area.h - bh) * limitar(rol / (total - area.h), 0, 1);
+    caminhoArredondado(area.x + area.w - 6, area.y, 6, area.h, 3);
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.fill();
+    caminhoArredondado(area.x + area.w - 6, by, 6, bh, 3);
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.fill();
+  }
+}
+
+function desenharRanking(dt) {
+  const L = layoutRanking(), d = rk.dados;
+  fundoNoturno();
+  linhasDeVelocidade(W / 2, 40, 'rgba(255,230,120,0.06)', 60, 120);
+  desenharPetalas(dt, 0.35);
+  texto('RANKING', W / 2, retrato ? 104 : 74, { tam: retrato ? 88 : 72, fonte: FONTE_TITULO, alinha: 'center', cor: gradiente(retrato ? 30 : 20, retrato ? 104 : 74, [[0, '#fff6a8'], [1, '#ffb703']]), contorno: '#1a0b3b', espessura: 10 });
+
+  painelRanking(L.per, false);
+  painelRanking(L.jog, true);
+  texto('🏆 QUEM ZEROU O JOGO', L.jog.x + 22, L.jog.y + 44, { tam: 36, fonte: FONTE_TITULO, cor: '#ffd166', contorno: '#1a0b3b', espessura: 6, maxW: L.jog.w - 200 });
+  if (rk.eu) texto(rk.eu.posicao ? `Você: ${rk.eu.posicao}º lugar` : 'Você entrou!', L.jog.x + L.jog.w - 22, L.jog.y + 42, { tam: 22, alinha: 'right', cor: '#7dffb3' });
+  texto('PERSONAGENS MAIS ESCOLHIDOS', L.per.x + 20, L.per.y + 42, { tam: 28, fonte: FONTE_TITULO, cor: '#7dd3fc', contorno: '#1a0b3b', espessura: 5, maxW: L.per.w - 40 });
+
+  if (!d) {
+    const msg = rk.erro || 'Carregando…';
+    for (const r of [L.jog, L.per]) texto(msg, r.x + r.w / 2, r.y + L.topo + 70, { tam: 22, alinha: 'center', cor: rk.erro ? '#ff8fa3' : '#fff', maxW: r.w - 40 });
+  } else {
+    listaRolavel(L.jog, L.topo, L.linhaJog, rk.rol.jog.atual, d.jogadores, linhaJogador, 'Ninguém zerou o jogo ainda. Seja o primeiro!');
+    listaRolavel(L.per, L.topo, L.linhaPer, rk.rol.per.atual, d.personagens, linhaPersonagem, 'Nenhuma partida registrada ainda.');
+  }
+
+  botao('VOLTAR', L.voltar.x, L.voltar.y, L.voltar.w, L.voltar.h);
+  if (!modoToque && !retrato) texto('↑↓ ou roda do mouse para rolar   •   ENTER voltar', L.voltar.x + L.voltar.w + 24, L.voltar.y + L.voltar.h / 2 + 6, { tam: 15, cor: 'rgba(255,255,255,0.7)', contorno: null, sombra: false });
+}
+
 // ---------- Final: parabéns + quadro completo de professores ----------
 function desenharFinal(dt) {
-  const t = tTela;
+  const t = tFinal();
   fundoNoturno();
   linhasDeVelocidade(W / 2, H / 2, 'rgba(255,230,120,0.07)', 70, 200);
   desenharPetalas(dt);
@@ -1520,6 +1883,7 @@ function quadro(agora) {
   desenhar();
   apertadas.clear();
   cliques.length = 0;
+  rolagens.length = 0;
   requestAnimationFrame(quadro);
 }
 

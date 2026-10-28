@@ -50,3 +50,22 @@ body {
   -webkit-tap-highlight-color: transparent;
   box-shadow: 0 0 60px rgba(90, 120, 255, 0.25);
 }
+
+/* campo do apelido no ranking: posicionado pelo jogo.js por cima do canvas */
+#campo-nome {
+  display: none;
+  position: fixed;
+  z-index: 2;
+  padding: 0 1em;
+  border: 4px solid #ffd166;
+  border-radius: 999px;
+  background: rgba(12, 10, 40, 0.92);
+  color: #fff;
+  font-family: "M PLUS Rounded 1c", "Trebuchet MS", sans-serif;
+  font-weight: 800;
+  text-align: center;
+  outline: none;
+  box-shadow: 0 0 24px rgba(255, 183, 3, 0.45);
+}
+#campo-nome::placeholder { color: rgba(255, 255, 255, 0.45); }
+#campo-nome:focus { border-color: #7dffb3; box-shadow: 0 0 28px rgba(125, 255, 179, 0.55); }
