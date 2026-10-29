@@ -53,5 +53,9 @@
   <script src="js/audio.js"></script>
   <script src="js/ranking.js"></script>
   <script src="js/jogo.js"></script>
+  <script>
+    // service worker: deixa o jogo instalável e é exigido pelo PWABuilder (app Android)
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  </script>
 </body>
 </html>
