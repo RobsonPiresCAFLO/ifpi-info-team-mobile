@@ -325,7 +325,7 @@ const ESPECIAIS = {
     simbolos: ['📚', 'Platão', 'Sócrates', 'Kant', '?', 'Ética', 'Logos'], cores: ['#8d0801', '#ffd166', '#ffffff'],
   },
   'Justino': {
-    nome: 'Modelagem', frase: 'Peste atenção!', estilo: 'ciclone', forma: 'chip', som: 'ciclone',
+    nome: 'Modelagem', frase: 'Preste atenção!', estilo: 'ciclone', forma: 'chip', som: 'ciclone',
     simbolos: ['ER', 'PK', 'FK', '1:N', 'N:M', 'DB'], cores: ['#2ec4b6', '#caf0f8', '#ffd166'],
   },
   'Leandro Rodrigues': {
@@ -333,7 +333,7 @@ const ESPECIAIS = {
     simbolos: ['✔', 'Hipótese', 'Método', 'Dados', 'Conclusão'], cores: ['#5e548e', '#e0e1dd', '#7dffb3'],
   },
   'Magno': {
-    nome: 'Invisibilidade', frase: 'Tem feira!', estilo: 'disparo', forma: 'texto', som: 'animado', some: true,
+    nome: 'Invisibilidade', frase: 'Dá negócio!', estilo: 'disparo', forma: 'texto', som: 'animado', some: true,
     simbolos: ['✈', '🧳', '📍', 'Feira!', '✈'], cores: ['#bc6c25', '#ffd166', '#ffffff'],
   },
   'Marcony Santana': {
