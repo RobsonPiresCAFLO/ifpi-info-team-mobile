@@ -188,6 +188,7 @@ const BOTOES = {
   esq: { x: 100, y: 610, r: 60, rotulo: '◀' },
   dir: { x: 250, y: 610, r: 60, rotulo: '▶' },
   pulo: { x: W - 120, y: 610, r: 70, rotulo: '▲' },
+  esp: { x: W - 300, y: 610, r: 55, rotulo: '★' },   // poder especial
 };
 // Na vertical os botões ficam maiores, na faixa abaixo do chão.
 function posicionarBotoes() {
@@ -195,8 +196,9 @@ function posicionarBotoes() {
   Object.assign(BOTOES.esq, { x: retrato ? 95 : 100, y, r: retrato ? 70 : 60 });
   Object.assign(BOTOES.dir, { x: retrato ? 265 : 250, y, r: retrato ? 70 : 60 });
   Object.assign(BOTOES.pulo, { x: W - (retrato ? 110 : 120), y, r: retrato ? 80 : 70 });
+  Object.assign(BOTOES.esp, { x: W - (retrato ? 288 : 300), y, r: retrato ? 56 : 55 });
 }
-const toque = { esq: false, dir: false, pulo: false };
+const toque = { esq: false, dir: false, pulo: false, esp: false };
 let puloToqueAnterior = false;
 function lerToque() {
   posicionarBotoes();
@@ -233,7 +235,7 @@ let jogo = null;
 const jogador = { x: W / 2, y: CHAO, vx: 0, vy: 0, noChao: true, dir: 1, anim: 0, invul: 0, esticar: 0 };
 
 function novaPartida() {
-  jogo = { fase: 0, pontos: 0 };
+  jogo = { fase: 0, pontos: 0, especial: 0 };   // a barra de especial passa de uma fase para outra
   iniciarFase();
 }
 
@@ -246,6 +248,7 @@ function iniciarFase() {
     proximoItem: 1.2,
     combo: 0, maxCombo: 0, comboT: 0,
     dobro: 0,
+    especialMostrado: jogo.especial || 0, prontoT: 0, golpe: null, semRuins: 0,
     levouDano: false,
     tremor: 0, flash: 0, flashCor: '#fff',
     bonus: null,
@@ -286,6 +289,7 @@ function atualizar(dt) {
     case 'selecao': atualizarSelecao(); break;
     case 'intro': atualizarIntro(dt); break;
     case 'jogando': atualizarJogo(dt); break;
+    case 'especial': atualizarEspecial(dt); break;
     case 'pausa': atualizarPausa(); break;
     case 'faseConcluida': atualizarFaseConcluida(dt); break;
     case 'ko':
@@ -412,6 +416,11 @@ function atualizarJogo(dt) {
     return;
   }
   const j = jogo;
+  if (pediuEspecial() && j.especial >= 100) {
+    ativarEspecial();
+    return;
+  }
+  j.semRuins = Math.max(0, j.semRuins - dt);
   atualizarJogador(dt, false);
 
   j.tempo -= dt;
@@ -506,7 +515,7 @@ function gerarItem() {
     const p = sortear(PODERES);
     texto = p.texto;
     poder = p.id;
-  } else if (r < 0.06 + pRuim) {
+  } else if (r < 0.06 + pRuim && !(jogo.semRuins > 0)) {
     tipo = 'ruim';
     texto = sortear(COISAS_RUINS);
   } else {
@@ -535,6 +544,7 @@ function coletar(it) {
     textoFlutuante(`+${pts}`, it.x, it.y, '#7dffb3');
     explodir(it.x, it.y, '#7dffb3', 14, 260);
     Som.pegar(j.combo);
+    especialPorAcerto(it);
   } else if (it.tipo === 'ruim') {
     const dano = 18 + j.fase * 2;
     j.vida -= dano;
@@ -557,6 +567,7 @@ function coletar(it) {
     j.flashCor = '#fff3b0';
     explodir(it.x, it.y, '#ffd166', 24, 320);
     Som.poder();
+    ganharEspecial(15);
   }
 }
 
@@ -772,6 +783,8 @@ function atualizarEfeitos(dt) {
   const j = jogo;
   j.vidaMostrada += (j.vida - j.vidaMostrada) * Math.min(1, dt * 3);
   j.barraMostrada += (j.barra - j.barraMostrada) * Math.min(1, dt * 5);
+  j.especialMostrado += ((j.especial || 0) - j.especialMostrado) * Math.min(1, dt * 6);
+  j.prontoT = Math.max(0, j.prontoT - dt);
   j.tremor = Math.max(0, j.tremor - dt);
   j.flash = Math.max(0, j.flash - dt);
   for (const p of j.particulas) {
@@ -1078,6 +1091,7 @@ function desenhar() {
     case 'selecao': desenharSelecao(dt); break;
     case 'intro': desenharCena(); desenharIntro(); break;
     case 'jogando': desenharCena(); desenharControlesToque(); break;
+    case 'especial': desenharCena(); desenharEspecial(); break;
     case 'pausa': desenharCena(); desenharPausa(); break;
     case 'faseConcluida': desenharCena(); desenharFaseConcluida(); break;
     case 'ko': desenharCena(); desenharKO('K.O.!', '#ff2d55'); break;
@@ -1241,15 +1255,18 @@ function desenharSelecao(dt) {
   y += 30;
   const fh = retrato ? 20 : 19, lh = retrato ? 26 : 26;   // fonte e altura da linha das habilidades
   ctx.font = `500 ${fh}px ${FONTE_TEXTO}`;
-  const itens = p.habilidades.length ? p.habilidades : ['Em breve… (edite js/dados.js para adicionar)'];
+  const esp = dadosEspecial(p);
+  const linhaEsp = `Especial: “${esp.nome}”` + (esp.frase.trim() ? ` — ${esp.frase.trim()}` : '');
+  const itens = [...(p.habilidades.length ? p.habilidades : ['Em breve… (edite js/dados.js para adicionar)']), linhaEsp];
   const limiteY = p.disciplinas.length ? py + ph - 64 : py + ph - 20;
   for (const h of itens) {
     const linhas = quebrarLinhas(h, pw - 90);
     if (y > limiteY) break;
-    texto('✦', px + 34, y, { tam: 18, cor: '#ffd166', contorno: null, sombra: false });
+    const ehEsp = h === linhaEsp;
+    texto(ehEsp ? '★' : '✦', px + 34, y, { tam: 18, cor: ehEsp ? '#ff8fab' : '#ffd166', contorno: null, sombra: false });
     for (const l of linhas) {
       if (y > limiteY) break;
-      texto(l, px + 62, y, { tam: fh, peso: 500, cor: '#fff', contorno: null, sombra: false });
+      texto(l, px + 62, y, { tam: fh, peso: ehEsp ? 800 : 500, cor: ehEsp ? '#ffc6e0' : '#fff', contorno: null, sombra: false });
       y += lh;
     }
     y += 3;
@@ -1326,7 +1343,9 @@ function desenharCena() {
   ctx.stroke();
 
   for (const it of j.itens) desenharItem(it);
+  if (j.golpe && j.golpe.e.some) ctx.globalAlpha = 0.12;   // golpes de invisibilidade
   desenharProfessor(escolhido, jogador.x, jogador.y, { dir: jogador.dir, anim: jogador.anim, noAr: !jogador.noChao, vy: jogador.vy, esticar: jogador.esticar, invul: jogador.invul, escalaP: escalaJogador() });
+  ctx.globalAlpha = 1;
 
   for (const p of j.particulas) {
     ctx.globalAlpha = Math.max(0, p.vida / p.max);
@@ -1460,6 +1479,7 @@ function desenharHUD() {
   barra(100, 20, bw, 30, vidaFrac, j.vidaMostrada / 100, corVida, '#ff2d55', false);
   texto(p.nome.toUpperCase(), 104, 80, { tam: 28, fonte: FONTE_TITULO, cor: '#fff', maxW: bw - 150 });
   texto(zeros(j.pontos), 100 + bw, 80, { tam: 26, fonte: FONTE_TITULO, alinha: 'right', cor: '#ffd166' });
+  desenharBarraEspecial();
 
   // cronômetro
   const ct = caixaTempo();
@@ -1500,7 +1520,7 @@ function desenharHUD() {
   texto('TI', tiX, tiY + 14, { tam: 40, fonte: FONTE_TITULO, alinha: 'center', cor: '#fff' });
 
   // estados especiais e combo
-  const yEstado = retrato ? 236 : 130;
+  const yEstado = retrato ? 236 : 140;
   if (j.dobro > 0) texto(`★ PONTOS x2  ${Math.ceil(j.dobro)}s`, 24, yEstado, { tam: 22, cor: '#ffd166' });
   if (tela === 'jogando' && j.combo >= 3 && j.comboT > 0) {
     const s = 1 + Math.max(0, j.comboT - 1.8) * 2;
@@ -1517,6 +1537,7 @@ function desenharHUD() {
 function desenharControlesToque() {
   if (!modoToque) return;
   for (const [k, b] of Object.entries(BOTOES)) {
+    if (k === 'esp') continue;              // o botão ★ tem desenho próprio (anel de carga)
     ctx.beginPath();
     ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
     ctx.fillStyle = toque[k] ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.15)';
@@ -1526,6 +1547,7 @@ function desenharControlesToque() {
     ctx.stroke();
     texto(b.rotulo, b.x, b.y + 2, { tam: 40, alinha: 'center', base: 'middle', cor: 'rgba(255,255,255,0.85)', contorno: null, sombra: false });
   }
+  desenharBotaoEspecial();
 }
 
 // Telas centralizadas foram desenhadas para 720 de altura; na vertical, descem até o meio.
@@ -1561,7 +1583,7 @@ function desenharIntro() {
     texto(f.nome.toUpperCase(), W / 2 - dx, 335 + d, { tam: 110, fonte: FONTE_TITULO, alinha: 'center', cor: '#fff', contorno: '#3a0ca3', espessura: 14, maxW: W - 40 });
     texto(f.subtitulo, W / 2 + dx, 390 + d, { tam: 28, alinha: 'center', cor: '#ffc2d4', maxW: W - 40 });
     if (jogo.fase === 0) {
-      const ajuda = modoToque ? 'Use os botões ◀ ▶ e ▲ para pular' : 'Setas / A D para mover  •  ↑ / Espaço para pular';
+      const ajuda = modoToque ? 'Botões ◀ ▶ para mover, ▲ para pular e ★ para o especial' : 'Setas / A D mover  •  ↑ / Espaço pular  •  ↓ especial';
       if (retrato) {
         texto('PEGUE os conteúdos 📘', W / 2, 450 + d, { tam: 28, alinha: 'center', cor: '#fff' });
         texto('DESVIE dos problemas 💀', W / 2, 490 + d, { tam: 28, alinha: 'center', cor: '#fff' });

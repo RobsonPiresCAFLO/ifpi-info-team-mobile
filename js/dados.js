@@ -38,6 +38,7 @@
  *   cor         → cor do uniforme do personagem e dos destaques
  *   titulo      → frase curta abaixo do nome (ex.: "O Mestre dos Algoritmos")
  *   habilidades → lista exibida no painel ao passar o cursor sobre o professor
+ *                 (o golpe especial aparece sozinho no fim da lista: ver ESPECIAIS)
  *   rosto       → (opcional) recorte do rosto [x, y, lado] em frações da imagem,
  *                 para fotos em que o rosto aparece pequeno. Padrão: [0.12, 0.03, 0.76]
  *   disciplinas → palavras "boas" que caem durante o jogo quando ele é escolhido.
@@ -55,7 +56,6 @@ const PROFESSORES = [
     habilidades: [
       'Estrutura de Dados I e II: empilha, enfileira e balanceia árvores sem suar',
       'Matemática Computacional: resolve contas antes do compilador terminar',
-      'Golpe especial: “Busca Binária” — encontra qualquer coisa em O(log n)',
     ],
     disciplinas: ['Pilha', 'Fila', 'Lista Encadeada', 'Árvore AVL', 'Grafos', 'Hash', 'Recursão', 'Big O', 'Ordenação', 'Mat. Computacional'],
   },
@@ -76,7 +76,6 @@ const PROFESSORES = [
     habilidades: [
       'Algoritmos e Lógica de Programação: o primeiro “Olá, Mundo!” da turma',
       'Algoritmos e Programação: transforma problemas em passo a passo',
-      'Golpe especial: “Teste de Mesa” — acha o erro antes de executar',
     ],
     disciplinas: ['Algoritmos', 'Lógica', 'Variáveis', 'Se / Senão', 'Laço Para', 'Enquanto', 'Vetores', 'Funções', 'Fluxograma', 'Pseudocódigo'],
   },
@@ -97,7 +96,6 @@ const PROFESSORES = [
       'Filosofia: pensamento crítico antes de qualquer linha de código',
       'Responsabilidade Social: tecnologia a serviço das pessoas',
       'Ética e Profissionalismo: competências para o mercado de trabalho',
-      'Golpe especial: “Informação é Poder” — e poder exige responsabilidade',
     ],
     disciplinas: ['Ética', 'Filosofia', 'Pensamento Crítico', 'Responsabilidade Social', 'Profissionalismo', 'Competências', 'Mercado de Trabalho', 'Informação', 'Cidadania', 'Sociedade'],
   },
@@ -128,7 +126,6 @@ const PROFESSORES = [
     habilidades: [
       'Administração e Empreendedorismo: do plano de negócios à liderança',
       'Agenda dupla: concilia a sala de aula com a vida pública da cidade',
-      'Golpe especial: “Atividade Extra” — a turma nunca fica parada',
       'Orientação de TCC: projetos que geram impacto na comunidade',
     ],
     disciplinas: ['Administração', 'Empreendedorismo', 'Liderança', 'Planejamento', 'Plano de Negócios', 'Gestão Pública', 'Marketing', 'Negociação', 'Comunidade', 'Projeto'],
@@ -238,7 +235,6 @@ const PROFESSORES = [
       'Língua Portuguesa: escrita clara, coesa e sem erros',
       'Documentação de Sistemas: manuais que o usuário realmente entende',
       'Interpretação de Requisitos: lê nas entrelinhas o que o cliente quer',
-      'Golpe especial: “Revisão Final” — nenhuma vírgula fora do lugar',
     ],
     disciplinas: ['Gramática', 'Coesão', 'Coerência', 'Redação', 'Manual do Usuário', 'Documentação', 'Requisitos', 'Interpretação', 'Ortografia', 'Concordância'],
   },
@@ -248,7 +244,6 @@ const PROFESSORES = [
     habilidades: [
       'Engenharia de Software I e II: do requisito à entrega',
       'Análise e Projeto de Sistemas: modela tudo em UML',
-      'Golpe especial: “Sprint Perfeita” — entrega no prazo, sem bugs',
     ],
     disciplinas: ['Requisitos', 'UML', 'Scrum', 'Kanban', 'Casos de Uso', 'Diagrama de Classes', 'Sprint', 'Git', 'Qualidade'],
   },
@@ -257,20 +252,125 @@ const PROFESSORES = [
     titulo: 'O Explorador de Tecnologias',
     habilidades: [
       'Tópicos Especiais em Programação: sempre com a tecnologia do momento',
-      'Golpe especial: “Nova Stack” — aprende um framework por semana',
     ],
     disciplinas: ['Framework', 'Git', 'API', 'Docker', 'Clean Code', 'Refatoração', 'Deploy', 'TypeScript', 'Node.js'],
   },
 ];
 
+/*
+ * PODER ESPECIAL de cada professor — edite aqui!
+ * A barra ESPECIAL enche com os acertos (mais rápido com combo). Cheia, o jogador
+ * aperta ↓ (ou S, E, L) ou toca no botão ★: todos os itens vermelhos são destruídos,
+ * os conteúdos na tela são coletados e o Conhecimento sobe (pode fechar a fase).
+ *
+ *   nome     → nome do golpe (aparece grande na cena do especial)
+ *   frase    → frase de efeito ('' = sem frase)
+ *   estilo   → como os itens vermelhos são destruídos:
+ *              'disparo'  símbolos saem do professor     'chuva'    caem do céu
+ *              'raios'    raios do céu                   'onda'     onda de energia
+ *              'ciclone'  redemoinho de símbolos         'organiza' os itens se alinham e somem
+ *              'robos'    mini robôs saem dos lados      'magica'   somem num passe de mágica
+ *   forma    → desenho dos símbolos: 'texto', 'balao', 'postit' ou 'chip'
+ *   simbolos → textos/emojis usados no golpe
+ *   cores    → cores do efeito (a 1ª é a principal)
+ *   som      → 'matematica', 'guitarra', 'bips', 'conversa', 'filosofia', 'ciclone',
+ *              'organiza', 'animado', 'rock', 'acelerada', 'magica', 'raios',
+ *              'complexo', 'robo', 'eletronico', 'pagina', 'kanban' ou 'sino'
+ *   some     → true: o professor fica invisível durante o golpe
+ * Professor sem entrada aqui usa o título como nome do golpe e a cor dele.
+ */
+const ESPECIAIS = {
+  'André Castro': {
+    nome: 'FX!', frase: 'Eu acho é pouco', estilo: 'disparo', forma: 'texto', som: 'matematica',
+    simbolos: ['∑', '∫', 'lim', 'log', 'π', '√', '∞', 'f(x)', 'Δ'], cores: ['#ff6b35', '#ffd166', '#ffffff'],
+  },
+  'Cicero Eduardo Walter': {
+    nome: 'Publish', frase: 'Iron Maiden!', estilo: 'raios', forma: 'texto', som: 'guitarra',
+    simbolos: ['🤘', 'IEEE', 'Scopus', 'DOI', 'Paper', 'Citação'], cores: ['#e63946', '#ffd166', '#8d99ae'],
+  },
+  'Elane Cristina': {
+    nome: 'Beleza no Algoritmo', frase: 'Compile!', estilo: 'chuva', forma: 'texto', som: 'bips',
+    simbolos: ['0', '1', '01', '10', '101', '0110', '1001'], cores: ['#3aa7ff', '#7dffb3', '#ffffff'],
+  },
+  'Francisco Eduardo': {
+    nome: 'UX/UI', frase: '@#!$%$&', estilo: 'disparo', forma: 'balao', som: 'conversa',
+    simbolos: ['Na verdade...', 'E a usabilidade?', 'Cadê o protótipo?', '@#!$%&', 'Mais um ponto...', 'Refaça!', 'UX!', 'UI!'],
+    cores: ['#e63946', '#3aa7ff', '#10102a'],
+  },
+  'Jair Freitas': {
+    nome: 'Penso, logo existo', frase: 'Ha ha ha ha!', estilo: 'disparo', forma: 'texto', som: 'filosofia',
+    simbolos: ['📚', 'Platão', 'Sócrates', 'Kant', '?', 'Ética', 'Logos'], cores: ['#8d0801', '#ffd166', '#ffffff'],
+  },
+  'Justino': {
+    nome: 'Modelagem', frase: 'Peste atenção!', estilo: 'ciclone', forma: 'chip', som: 'ciclone',
+    simbolos: ['ER', 'PK', 'FK', '1:N', 'N:M', 'DB'], cores: ['#2ec4b6', '#caf0f8', '#ffd166'],
+  },
+  'Leandro Rodrigues': {
+    nome: 'Método Científico', frase: 'Organize', estilo: 'organiza', forma: 'texto', som: 'organiza',
+    simbolos: ['✔', 'Hipótese', 'Método', 'Dados', 'Conclusão'], cores: ['#5e548e', '#e0e1dd', '#7dffb3'],
+  },
+  'Magno': {
+    nome: 'Invisibilidade', frase: 'Tem feira!', estilo: 'disparo', forma: 'texto', som: 'animado', some: true,
+    simbolos: ['✈', '🧳', '📍', 'Feira!', '✈'], cores: ['#bc6c25', '#ffd166', '#ffffff'],
+  },
+  'Marcony Santana': {
+    nome: 'Sextou!', frase: "Rock n' Roll", estilo: 'disparo', forma: 'texto', som: 'rock',
+    simbolos: ['♪', '♫', '♬', '🎤', '🎸', '🤘'], cores: ['#4361ee', '#ffd166', '#ffffff'],
+  },
+  'Paulo Ferreira': {
+    nome: 'Goodbye!', frase: 'Read, Write, Execute!', estilo: 'disparo', forma: 'balao', som: 'guitarra',
+    simbolos: ['Goodbye!', 'Read', 'Write', 'Execute', 'Hello!', 'Bye bye!', '🎸'], cores: ['#06a77d', '#ffd166', '#10102a'],
+  },
+  'Rafael Leite': {
+    nome: 'Startup!', frase: 'Inovação!', estilo: 'disparo', forma: 'texto', som: 'acelerada',
+    simbolos: ['🚀', '💡', '⚙', 'MVP', 'Pitch', '</>'], cores: ['#4cc9f0', '#ffd166', '#ffffff'],
+  },
+  'Rennê': {
+    nome: 'Randomize', frase: 'Barba!', estilo: 'magica', forma: 'texto', som: 'magica', some: true,
+    simbolos: ['✨', '?', 'rand()', '🎲', '✦'], cores: ['#c77dff', '#ffd166', '#ffffff'],
+  },
+  'Robson Borges': {
+    nome: 'Web', frase: 'Estude, teste!', estilo: 'raios', forma: 'texto', som: 'raios',
+    simbolos: ['⚡', '</>', '{ }', 'PHP', 'JS', 'SQL'], cores: ['#ffe66d', '#7b6cf6', '#ffffff'],
+  },
+  'Robson Freitas': {
+    nome: 'Anima!', frase: 'Bora!', estilo: 'onda', forma: 'texto', som: 'animado',
+    simbolos: ['⚡', '★', '✦'], cores: ['#2ec4b6', '#7dffb3', '#ffffff'],
+  },
+  'Rogério Sousa': {
+    nome: 'Olha', frase: 'Resolve!', estilo: 'disparo', forma: 'texto', som: 'complexo',
+    simbolos: ['P(A)', 'σ', 'μ', 'n!', '∑', '%', 'x̄', '∫'], cores: ['#c77dff', '#f2e9ff', '#ffd166'],
+  },
+  'Ronaldo Borges': {
+    nome: 'Bot', frase: '', estilo: 'robos', forma: 'texto', som: 'robo',
+    simbolos: ['Arduino', 'IoT', '⚙'], cores: ['#00b4d8', '#ffd166', '#7dffb3'],
+  },
+  'Silvino Marques': {
+    nome: 'Hardware', frase: 'É o seguinte:', estilo: 'disparo', forma: 'chip', som: 'eletronico',
+    simbolos: ['CPU', 'RAM', 'SSD', 'GPU', 'BIOS', 'USB'], cores: ['#f77f00', '#2ec4b6', '#ffd166'],
+  },
+  'Taianni': {
+    nome: 'Revisão Final', frase: 'Olha a semântica', estilo: 'disparo', forma: 'texto', som: 'pagina',
+    simbolos: ['📖', 'coesão', 'coerência', 'semântica', 'sintaxe', 'crase'], cores: ['#c77dff', '#ffffff', '#ffd166'],
+  },
+  'Vanessa Veloso': {
+    nome: 'Codex', frase: 'Daily', estilo: 'disparo', forma: 'postit', som: 'kanban',
+    simbolos: ['TO DO', 'DOING', 'DONE', 'UML', 'Sprint', 'Daily'], cores: ['#ff8fab', '#ffd166', '#7dffb3', '#a0c4ff'],
+  },
+  'Willamys Rangel': {
+    nome: 'Direção', frase: 'Bora galera!', estilo: 'disparo', forma: 'chip', som: 'sino',
+    simbolos: ['SELECT', 'JOIN', 'PK', 'SQL', 'O(n)', 'if'], cores: ['#8ecae6', '#ffd166', '#ffffff'],
+  },
+};
+
 // Fases: uma por ambiente da escola, na ordem em que são jogadas.
 const FASES = [
   { nome: 'Entrada',        subtitulo: 'Primeiro dia de aula',      fundo: 'assets/cenarios/temp/entrada.jpg' },
   { nome: 'Área Verde',     subtitulo: 'Intervalo entre as aulas',  fundo: 'assets/cenarios/temp/area_verde1.jpg' },
-  { nome: 'Estacionamento', subtitulo: 'Chegando em cima da hora!', fundo: 'assets/cenarios/temp/estacionamento.jpg' },
-  { nome: 'Pátio',          subtitulo: 'Semana de provas',          fundo: 'assets/cenarios/temp/estacionamento2.jpg' },
-  { nome: 'Garagem',        subtitulo: 'Visita técnica',            fundo: 'assets/cenarios/temp/garagem.jpg' },
-  { nome: 'Bloco J',        subtitulo: 'Banca de TCC ao anoitecer', fundo: 'assets/cenarios/temp/bloco_j.jpg' },
+  { nome: 'IFPI Tower', subtitulo: 'Chegando em cima da hora!', fundo: 'assets/cenarios/temp/estacionamento.jpg' },
+  { nome: 'Estacionamento', subtitulo: 'Estacione na sombra',      fundo: 'assets/cenarios/temp/estacionamento2.jpg' },
+  { nome: 'Garagem do Buzão', subtitulo: 'Visita técnica', fundo: 'assets/cenarios/temp/garagem.jpg' },
+  { nome: 'Bloco J',        subtitulo: 'Prática no Lab J18', fundo: 'assets/cenarios/temp/bloco_j.jpg' },
 ];
 
 // Itens bons: conteúdos dos cursos Técnico e de Graduação em TI.
@@ -279,9 +379,9 @@ const PALAVRAS_BOAS = [
   'Algoritmos', 'Lógica', 'Redes', 'TCP/IP', 'Linux', 'Git', 'POO',
   'Banco de Dados', 'UML', 'Scrum', 'API REST', 'Estrutura de Dados',
   'Sistemas Operacionais', 'Hardware', 'Segurança', 'Cloud', 'IA',
-  'Eng. de Software', 'Docker', 'Laravel', 'React', 'Mobile', 'Testes',
+  'Eng. de Software', 'Docker', 'Laravel', 'React', 'Mobile', 'Testes', 'Django',
   'LGPD', 'Empreendedorismo', 'Mat. Discreta', 'Compiladores', 'Kanban',
-  'Arquitetura', 'Front-end', 'Back-end', 'Wi-Fi 6', 'Cibersegurança',
+  'Arquitetura', 'Front-end', 'Back-end', 'Wi-Fi 6', 'Cibersegurança', 'PostgreSQL',
 ];
 
 // Itens ruins: tudo o que atrapalha a vida de quem estuda TI.

@@ -88,7 +88,7 @@ const Som = (() => {
 
   const tom = (freq, dur, opts = {}) => ac && tomEm(ac.currentTime + (opts.atraso || 0), freq, dur, opts);
   const ruido = (dur, opts = {}) => ac && ruidoEm(ac.currentTime + (opts.atraso || 0), dur, opts);
-  const arpejo = (notas, dur, passoT, opts) => notas.forEach((n, i) => tom(hz(n), dur, { ...opts, atraso: i * passoT }));
+  const arpejo = (notas, dur, passoT, opts = {}) => notas.forEach((n, i) => tom(hz(n), dur, { ...opts, atraso: (opts.atraso || 0) + i * passoT }));
 
   // ---------- Música: progressão estilo abertura de anime (Am – F – G – E) ----------
   const ACORDES = [[69, 72, 76], [65, 69, 72], [67, 71, 74], [64, 68, 71]];
@@ -165,6 +165,36 @@ const Som = (() => {
     return mudo;
   }
 
+  // ---------- Sons do poder especial (um "tema" curto por professor) ----------
+  const acorde = (notas, dur, opts) => notas.forEach((n) => tom(hz(n), dur, opts));
+  const SONS_ESPECIAL = {
+    matematica: () => { arpejo([72, 76, 79, 83, 86, 91, 95], 0.18, 0.07, { tipo: 'sine', vol: 0.22 }); tom(hz(96), 0.6, { tipo: 'triangle', vol: 0.12, atraso: 0.5, ate: hz(108) }); },
+    guitarra: () => {
+      acorde([40, 47, 52], 0.5, { tipo: 'sawtooth', vol: 0.09 });
+      [52, 55, 57, 55, 59, 57, 64].forEach((n, i) => tom(hz(n), 0.16, { tipo: 'sawtooth', vol: 0.09, atraso: 0.45 + i * 0.1, ate: hz(n + (i === 6 ? 2 : 0)) }));
+    },
+    bips: () => { for (let i = 0; i < 12; i++) tom(800 + Math.round(Math.random() * 6) * 200, 0.05, { vol: 0.08, atraso: i * 0.07 }); },
+    conversa: () => { for (let i = 0; i < 22; i++) tom(260 + Math.random() * 420, 0.045, { tipo: 'triangle', vol: 0.16, atraso: i * 0.045 }); },
+    filosofia: () => { acorde([45, 57, 60, 64, 69], 1.4, { tipo: 'sine', vol: 0.09 }); arpejo([69, 72, 76], 0.5, 0.35, { tipo: 'triangle', vol: 0.08 }); },
+    ciclone: () => { tom(180, 1.1, { tipo: 'sine', vol: 0.2, ate: 900 }); for (let i = 0; i < 3; i++) ruido(0.4, { vol: 0.18, passaAlta: 500 + i * 800, atraso: i * 0.25 }); },
+    organiza: () => arpejo([60, 62, 64, 65, 67, 69, 71, 72], 0.12, 0.08, { tipo: 'triangle', vol: 0.18 }),
+    animado: () => { arpejo([67, 72, 76, 79], 0.12, 0.1, { vol: 0.13 }); acorde([79, 84, 88], 0.7, { vol: 0.1, atraso: 0.42 }); },
+    rock: () => {
+      [0, 0.25, 0.5, 0.75].forEach((t) => tom(150, 0.15, { tipo: 'sine', vol: 0.7, ate: 40, atraso: t }));
+      [0.25, 0.75].forEach((t) => ruido(0.14, { vol: 0.3, passaAlta: 1500, atraso: t }));
+      [[40, 47], [43, 50], [45, 52], [47, 54]].forEach((c, i) => acorde(c, 0.24, { tipo: 'sawtooth', vol: 0.09, atraso: i * 0.25 }));
+    },
+    acelerada: () => { for (let i = 0; i < 16; i++) tom(hz(64 + (i % 8) * 2 + Math.floor(i / 8) * 12), 0.05, { vol: 0.09, atraso: i * 0.035 }); },
+    magica: () => { for (let i = 0; i < 12; i++) tom(hz(84 + Math.floor(Math.random() * 16)), 0.25, { tipo: 'sine', vol: 0.12, atraso: i * 0.05 }); tom(400, 0.7, { tipo: 'sine', vol: 0.1, ate: 1600 }); },
+    raios: () => { ruido(0.45, { vol: 0.5 }); tom(120, 0.6, { tipo: 'sawtooth', vol: 0.22, ate: 40 }); ruido(0.3, { vol: 0.35, passaAlta: 2000, atraso: 0.3 }); },
+    complexo: () => { acorde([60, 61, 66, 67, 70], 0.9, { tipo: 'triangle', vol: 0.06 }); for (let i = 0; i < 8; i++) tom(hz(60 + Math.floor(Math.random() * 24)), 0.1, { tipo: 'sine', vol: 0.12, atraso: 0.3 + i * 0.07 }); },
+    robo: () => { for (let i = 0; i < 10; i++) tom(i % 2 ? 300 : 600, 0.06, { vol: 0.09, atraso: i * 0.07, ate: i % 2 ? 900 : 200 }); },
+    eletronico: () => { tom(200, 0.5, { vol: 0.08, ate: 2000 }); for (let i = 0; i < 6; i++) tom(1200 + i * 150, 0.04, { vol: 0.07, atraso: 0.5 + i * 0.06 }); },
+    pagina: () => { for (let i = 0; i < 3; i++) ruido(0.08, { vol: 0.25, passaAlta: 3000, atraso: i * 0.12 }); tom(hz(91), 1.0, { tipo: 'sine', vol: 0.15, atraso: 0.4 }); tom(hz(98), 0.8, { tipo: 'sine', vol: 0.08, atraso: 0.4 }); },
+    kanban: () => { for (let i = 0; i < 6; i++) tom(1200, 0.03, { vol: 0.12, atraso: i * 0.08 }); arpejo([72, 76, 79, 84], 0.15, 0.08, { vol: 0.12, atraso: 0.5 }); },
+    sino: () => { tom(hz(84), 1.3, { tipo: 'sine', vol: 0.2 }); tom(hz(96), 1.0, { tipo: 'sine', vol: 0.08 }); tom(hz(79), 1.3, { tipo: 'sine', vol: 0.15, atraso: 0.35 }); },
+  };
+
   return {
     destravar, musica, alternarMudo,
     get mudo() { return mudo; },
@@ -189,6 +219,14 @@ const Som = (() => {
       tom(hz(84), 0.8, { vol: 0.15, atraso: 0.48 });
       tom(hz(79), 0.8, { tipo: 'sine', vol: 0.15, atraso: 0.48 });
     },
+    especial: (nome) => {
+      if (!ac) return;
+      tom(hz(48), 0.5, { tipo: 'sawtooth', vol: 0.12, ate: hz(72) });   // "entrada" do golpe
+      ruido(0.3, { vol: 0.2, passaAlta: 1200 });
+      setTimeout(() => (SONS_ESPECIAL[nome] || SONS_ESPECIAL.animado)(), 250);
+    },
+    especialPronto: () => arpejo([72, 79, 84, 91], 0.14, 0.06, { tipo: 'sine', vol: 0.22 }),
+    estouro: () => { tom(700, 0.12, { tipo: 'sine', vol: 0.18, ate: 120 }); ruido(0.08, { vol: 0.15 }); },
     ko: () => { tom(500, 1.0, { tipo: 'sawtooth', vol: 0.25, ate: 40 }); ruido(0.6, { vol: 0.3 }); },
   };
 })();
