@@ -37,7 +37,7 @@
 // ============================================================
 
 const TECLAS_ESPECIAL = ['ArrowDown', 'KeyS', 'KeyE', 'KeyL'];
-const ESPECIAL_CORTE = 1.25;       // duração da cena que apresenta o golpe (s)
+const ESPECIAL_CORTE = 1.6;        // duração da cena que apresenta o golpe (s)
 const ESPECIAL_SEM_RUINS = 3;      // segundos sem itens vermelhos (e invulnerável) depois do golpe
 
 function dadosEspecial(p) {
@@ -48,6 +48,17 @@ function dadosEspecial(p) {
     ...e,
   };
 }
+
+// '#rrggbb' + alfa → 'rgba(...)' (para degradês na cor do golpe)
+function comAlfa(cor, a) {
+  let h = String(cor).replace('#', '');
+  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+  const n = parseInt(h.slice(0, 6), 16);
+  if (Number.isNaN(n)) return `rgba(255,255,255,${a})`;
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
+// 0 → 1 passando um pouco do ponto e voltando (efeito "mola")
+const elastico = (k) => (k >= 1 ? 1 : 1 - Math.pow(2, -10 * k) * Math.cos(k * Math.PI * 3));
 
 // ---------- Barra: como enche ----------
 // Cada acerto vale de 4% (1º do combo) a 10% (a partir do 10º seguido).
@@ -105,11 +116,12 @@ function ativarEspecial() {
   });
   if (e.estilo === 'organiza') {          // vagas lado a lado, em ordem
     const n = alvos.length, passo = Math.min(170, (W - 160) / Math.max(1, n));
-    alvos.forEach((a, k) => { a.vx = W / 2 + (k - (n - 1) / 2) * passo; a.vy = retrato ? 420 : 250; });
+    alvos.forEach((a, k) => { a.vx = W / 2 + (k - (n - 1) / 2) * passo; a.vy = retrato ? 560 : 360; });
   }
   const bons = j.itens.filter((it) => it.tipo !== 'ruim').map((it) => ({ it, x0: it.x, y0: it.y, feito: false }));
   const fim = alvos.reduce((m, a) => Math.max(m, a.delay + a.dur), 0);
-  j.golpe = { e, t: 0, alvos, bons, duracao: Math.max(0.9, fim + 0.45), deco: [], proxDeco: 0 };
+  j.golpe = { e, t: 0, alvos, bons, duracao: Math.max(1.0, fim + 0.6), deco: [], proxDeco: 0,
+    ondas: [], abatidos: 0, popT: 0, flash: 0, impacto: false };
   j.especial = 0;
   j.prontoT = 0;
   Som.especial(e.som);
@@ -123,6 +135,11 @@ function atualizarEspecial(dt) {
   atualizarJogador(dt, true);
   atualizarEfeitos(dt);
   atualizarDeco(g, dt);
+  g.popT = Math.max(0, g.popT - dt);
+  g.flash = Math.max(0, g.flash - dt);
+  for (const o of g.ondas) o.t += dt;
+  g.ondas = g.ondas.filter((o) => o.t < 0.45);
+  if (!g.impacto && g.t >= 0.24) { g.impacto = true; Som.impacto(); jogo.tremor = Math.max(jogo.tremor, 0.25); }
   if (g.t < ESPECIAL_CORTE) return;
 
   const ta = g.t - ESPECIAL_CORTE;
@@ -152,19 +169,29 @@ function destruirAlvo(a) {
   const j = jogo, it = a.it;
   a.feito = true;
   it.morto = true;
+  const g = j.golpe, cor = a.cor === '#10102a' ? '#ffd166' : a.cor;
   j.pontos += 150;
   j.barra = Math.min(100, j.barra + 3);
-  explodir(it.x, it.y, a.cor, 22, 380);
-  explodir(it.x, it.y, '#ffffff', 8, 200);
-  textoFlutuante('+150', it.x, it.y, a.cor === '#10102a' ? '#ffd166' : a.cor);
-  j.tremor = Math.max(j.tremor, 0.12);
+  explodir(it.x, it.y, cor, 34, 520);
+  explodir(it.x, it.y, '#ffffff', 12, 260);
+  textoFlutuante('+150', it.x, it.y, cor, 36);
+  if (g) {
+    g.ondas.push({ x: it.x, y: it.y, cor, t: 0 });
+    g.abatidos++;
+    g.popT = 0.25;
+    g.flash = 0.09;
+  }
+  j.tremor = Math.max(j.tremor, 0.2);
   Som.estouro();
 }
 
 function finalizarEspecial() {
-  const j = jogo;
+  const j = jogo, n = j.golpe ? j.golpe.abatidos : 0;
   j.golpe = null;
   j.barra = Math.min(100, j.barra + 25);
+  textoFlutuante(n ? `${n} ELIMINADO${n > 1 ? 'S' : ''}!` : 'CAMINHO LIVRE!', W / 2, H * 0.42, '#ffd166', retrato ? 58 : 66);
+  textoFlutuante('+25% CONHECIMENTO', W / 2, H * 0.42 + (retrato ? 62 : 66), '#7dffb3', retrato ? 34 : 36);
+  Som.especialFim();
   if (j.barra >= 100) { concluirFase(); return; }     // o especial fechou o round
   j.semRuins = ESPECIAL_SEM_RUINS;
   jogador.invul = ESPECIAL_SEM_RUINS;
@@ -305,17 +332,145 @@ function trajetoria(a, k) {
 function desenharEspecial() {
   const g = jogo.golpe;
   if (!g) return;
-  const t = g.t, ta = t - ESPECIAL_CORTE;
-  const escuro = t < ESPECIAL_CORTE ? suave(limitar(t / 0.2, 0, 1)) : 1 - suave(limitar(ta / 0.3, 0, 1));
-  ctx.fillStyle = `rgba(8, 4, 24, ${0.55 * escuro})`;
+  const e = g.e, t = g.t, ta = t - ESPECIAL_CORTE, fimT = ESPECIAL_CORTE + g.duracao;
+  const escuro = suave(limitar(t / 0.2, 0, 1)) * (1 - suave(limitar((t - fimT + 0.35) / 0.35, 0, 1)));
+
+  // fundo escurecido + vinheta pulsando na cor do golpe
+  ctx.fillStyle = `rgba(8, 4, 24, ${(t < ESPECIAL_CORTE ? 0.66 : 0.55) * escuro})`;
   ctx.fillRect(0, 0, W, H);
+  ctx.save();
+  ctx.globalAlpha = escuro * (0.8 + 0.2 * Math.sin(t * 12));
+  const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.75);
+  vg.addColorStop(0, comAlfa(e.cores[0], 0));
+  vg.addColorStop(1, comAlfa(e.cores[0], 0.6));
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+
   for (const d of g.deco) {
     ctx.globalAlpha = Math.min(1, d.vida) * 0.6;
-    desenharSimbolo(d.txt, d.x, d.y, g.e.forma, d.cor, d.tam, d.rot);
+    desenharSimbolo(d.txt, d.x, d.y, e.forma, d.cor, d.tam, d.rot);
   }
   ctx.globalAlpha = 1;
+  if (t >= ESPECIAL_CORTE) desenharLetreiro(g, ta);
+
+  // professor, itens e efeitos voltam a aparecer por cima do escuro
+  ctx.save();
+  if (jogo.tremor > 0) ctx.translate(rand(-1, 1) * jogo.tremor * 30, rand(-1, 1) * jogo.tremor * 30);
+  desenharHolofote(g, t, escuro);
+  for (const it of jogo.itens) desenharItem(it);
+  desenharJogador();
+  desenharMiras(g, t);
   if (t >= ESPECIAL_CORTE) desenharAtaque(g, ta);
+  desenharOndas(g);
+  desenharEfeitos();
+  ctx.restore();
+
   if (t < ESPECIAL_CORTE + 0.05) desenharCorte(g, t);
+
+  // clarões: entrada do golpe (branco) e cada acerto (cor do golpe)
+  const entrada = limitar(1 - t / 0.18, 0, 1) * 0.85;
+  if (entrada > 0) { ctx.globalAlpha = entrada; ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H); }
+  if (g.flash > 0) { ctx.globalAlpha = g.flash * 2.5; ctx.fillStyle = e.cores[0]; ctx.fillRect(0, 0, W, H); }
+  ctx.globalAlpha = 1;
+}
+
+// Luz atrás do professor: brilho, raios girando e anéis de energia no chão.
+function desenharHolofote(g, t, escuro) {
+  if (g.e.some) return;                  // golpes de invisibilidade não revelam onde ele está
+  const e = g.e, s = escalaJogador(), x = jogador.x, y = jogador.y - 110 * s;
+  const r = 250 * s * (1 + 0.06 * Math.sin(t * 14));
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const gr = ctx.createRadialGradient(x, y, 0, x, y, r);
+  gr.addColorStop(0, comAlfa(e.cores[0], 0.6 * escuro));
+  gr.addColorStop(1, comAlfa(e.cores[0], 0));
+  ctx.fillStyle = gr;
+  ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  ctx.translate(x, y);
+  ctx.rotate(t * 0.9);
+  ctx.fillStyle = comAlfa(e.cores[1] || '#ffffff', 0.13 * escuro);
+  for (let i = 0; i < 12; i++) {
+    ctx.rotate(Math.PI / 6);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(r * 1.7, -r * 0.13);
+    ctx.lineTo(r * 1.7, r * 0.13);
+    ctx.fill();
+  }
+  ctx.restore();
+  ctx.save();
+  for (let k = 0; k < 3; k++) {
+    const f = (t * 1.5 + k / 3) % 1;
+    ctx.globalAlpha = (1 - f) * 0.85 * escuro;
+    ctx.lineWidth = 7 * (1 - f) + 1;
+    ctx.strokeStyle = e.cores[k % e.cores.length];
+    ctx.beginPath();
+    ctx.ellipse(x, jogador.y - 4, (50 + f * 170) * s, (12 + f * 38) * s, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// Mira travando em cada item vermelho antes de ele ser destruído.
+function desenharMiras(g, t) {
+  const k0 = t - (ESPECIAL_CORTE - 0.3);
+  if (k0 < 0) return;
+  ctx.save();
+  ctx.lineWidth = 5;
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = pisca(8) ? '#ffd166' : '#ff2d55';
+  for (const a of g.alvos) {
+    if (a.feito) continue;
+    const it = a.it, k = suave(limitar((k0 - Math.min(a.delay, 0.6) * 0.3) / 0.3, 0, 1));
+    if (k <= 0) continue;
+    const z = 1 + (1 - k) * 0.9, hw = (it.w / 2 + 12) * z, hh = (it.h / 2 + 12) * z, L = 20;
+    ctx.globalAlpha = k;
+    for (const sx of [-1, 1]) {
+      for (const sy of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(it.x + sx * hw, it.y + sy * (hh - L));
+        ctx.lineTo(it.x + sx * hw, it.y + sy * hh);
+        ctx.lineTo(it.x + sx * (hw - L), it.y + sy * hh);
+        ctx.stroke();
+      }
+    }
+  }
+  ctx.restore();
+}
+
+// Onda de choque em cada item destruído.
+function desenharOndas(g) {
+  ctx.save();
+  for (const o of g.ondas) {
+    const k = o.t / 0.45;
+    ctx.globalAlpha = 1 - k;
+    ctx.lineWidth = 14 * (1 - k) + 2;
+    ctx.strokeStyle = o.cor;
+    ctx.beginPath();
+    ctx.arc(o.x, o.y, 20 + suave(k) * 170, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// Nome do golpe no alto da tela durante o ataque + contador de eliminados.
+function desenharLetreiro(g, ta) {
+  const e = g.e;
+  const a = limitar(ta / 0.2, 0, 1) * (1 - suave(limitar((ta - g.duracao + 0.35) / 0.35, 0, 1)));
+  if (a <= 0) return;
+  const y = retrato ? 330 : 215, tam = retrato ? 66 : 76;
+  ctx.save();
+  ctx.globalAlpha = a;
+  texto(e.nome.toUpperCase(), W / 2, y, { tam, fonte: FONTE_TITULO, alinha: 'center', cor: '#fff', contorno: '#10102a', espessura: 20, maxW: W - 80 });
+  texto(e.nome.toUpperCase(), W / 2, y, { tam, fonte: FONTE_TITULO, alinha: 'center', cor: '#fff', contorno: e.cores[0], espessura: 8, sombra: false, maxW: W - 80 });
+  if (g.abatidos > 0) {
+    const z = 1 + g.popT * 2.2;
+    ctx.translate(W / 2, y + (retrato ? 66 : 70));
+    ctx.scale(z, z);
+    texto(`✖ ${g.abatidos} ELIMINADO${g.abatidos > 1 ? 'S' : ''}`, 0, 0, { tam: retrato ? 36 : 40, fonte: FONTE_TITULO, alinha: 'center', cor: '#ffd166' });
+  }
+  ctx.restore();
 }
 
 function desenharAtaque(g, ta) {
@@ -337,12 +492,12 @@ function desenharAtaque(g, ta) {
       const giro = e.estilo === 'ciclone' ? ta * 7 : 0;
       const ang = (k / n) * Math.PI * 2 + giro;
       const rr = e.estilo === 'ciclone' ? r * (0.45 + 0.55 * ((k % 3) / 2)) : r;
-      desenharSimbolo(e.simbolos[k % e.simbolos.length], ox + Math.cos(ang) * rr, oy + Math.sin(ang) * rr, e.forma, e.cores[k % e.cores.length], 30, e.estilo === 'ciclone' ? ang : 0);
+      desenharSimbolo(e.simbolos[k % e.simbolos.length], ox + Math.cos(ang) * rr, oy + Math.sin(ang) * rr, e.forma, e.cores[k % e.cores.length], 40, e.estilo === 'ciclone' ? ang : 0);
     }
     return;
   }
   if (e.estilo === 'organiza' && ta > 0.55) {
-    const yv = retrato ? 420 : 250;
+    const yv = retrato ? 560 : 360;
     ctx.save();
     ctx.setLineDash([14, 10]);
     ctx.lineWidth = 3;
@@ -362,12 +517,12 @@ function desenharAtaque(g, ta) {
         desenharSimbolo('✔', it.x + it.w / 2, it.y - it.h / 2, 'texto', '#7dffb3', 30, 0);
         break;
       case 'magica':
-        desenharSimbolo(a.simbolo, it.x, it.y, e.forma, a.cor, 30 + k * 50, k * 3);
+        desenharSimbolo(a.simbolo, it.x, it.y, e.forma, a.cor, 36 + k * 64, k * 3);
         break;
       case 'robos': {
         a.estiloRobo = true;
         const p = trajetoria(a, k);
-        desenharRobo(p.x, p.y, a.cor, retrato ? 1.4 : 1.2, ta * 20);
+        desenharRobo(p.x, p.y, a.cor, retrato ? 1.7 : 1.5, ta * 20);
         break;
       }
       default: {                          // 'disparo' e 'chuva': rastro + símbolo
@@ -375,7 +530,7 @@ function desenharAtaque(g, ta) {
         for (const [atras, alfa] of [[0.16, 0.25], [0.08, 0.5], [0, 1]]) {
           const p = trajetoria(a, Math.max(0, k - atras));
           ctx.globalAlpha = alfa;
-          desenharSimbolo(a.simbolo, p.x, p.y, e.forma, a.cor, 34, a.rot);
+          desenharSimbolo(a.simbolo, p.x, p.y, e.forma, a.cor, 46, a.rot);
         }
         ctx.globalAlpha = 1;
       }
@@ -389,14 +544,31 @@ function desenharAtaque(g, ta) {
   }
 }
 
-// Cena de apresentação: faixa na cor do golpe, retrato, nome e frase.
+// Cena de apresentação: explosão de raios, faixa na cor do golpe, retrato, nome e frase.
 function desenharCorte(g, t) {
   const e = g.e, p = prof(), img = imgProf[escolhido];
-  const entra = suave(limitar(t / 0.25, 0, 1));
+  const entra = suave(limitar(t / 0.22, 0, 1));
   const sai = suave(limitar((t - (ESPECIAL_CORTE - 0.2)) / 0.2, 0, 1));
   const cy = retrato ? H / 2 + 110 : H / 2, bh = retrato ? 330 : 280;
 
-  linhasDeVelocidade(W / 2, cy, `rgba(255,255,255,${0.12 * (1 - sai)})`, 60, 220);
+  // explosão de raios girando atrás de tudo
+  ctx.save();
+  ctx.globalAlpha = 0.5 * entra * (1 - sai);
+  ctx.translate(W / 2, cy);
+  ctx.rotate(t * 0.6);
+  const n = 16, R = Math.max(W, H) * 1.2;
+  for (let i = 0; i < n; i++) {
+    const a0 = (i / n) * Math.PI * 2, a1 = ((i + 0.5) / n) * Math.PI * 2;
+    ctx.fillStyle = i % 2 ? e.cores[0] : (e.cores[1] || '#ffffff');
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(Math.cos(a0) * R, Math.sin(a0) * R);
+    ctx.lineTo(Math.cos(a1) * R, Math.sin(a1) * R);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  linhasDeVelocidade(W / 2, cy, `rgba(255,255,255,${0.2 * (1 - sai)})`, 70, 220);
   ctx.save();
   ctx.globalAlpha = 1 - sai;
   ctx.translate(W / 2, cy);
@@ -408,9 +580,23 @@ function desenharCorte(g, t) {
   grad.addColorStop(1, e.cores[0]);
   ctx.fillStyle = grad;
   ctx.fillRect(-W, -bh / 2, W * 2, bh);
+  // listras diagonais correndo pela faixa
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  const off = (t * 700) % 130;
+  for (let x = -W - 130 + off; x < W + bh; x += 130) {
+    ctx.beginPath();
+    ctx.moveTo(x, -bh / 2);
+    ctx.lineTo(x + 55, -bh / 2);
+    ctx.lineTo(x + 55 - bh * 0.4, bh / 2);
+    ctx.lineTo(x - bh * 0.4, bh / 2);
+    ctx.fill();
+  }
   ctx.fillStyle = '#fff';
-  ctx.fillRect(-W, -bh / 2 - 8, W * 2, 8);
-  ctx.fillRect(-W, bh / 2, W * 2, 8);
+  ctx.fillRect(-W, -bh / 2 - 10, W * 2, 10);
+  ctx.fillRect(-W, bh / 2, W * 2, 10);
+  ctx.fillStyle = e.cores[1] || '#ffd166';
+  ctx.fillRect(-W, -bh / 2 - 18, W * 2, 6);
+  ctx.fillRect(-W, bh / 2 + 12, W * 2, 6);
   ctx.restore();
 
   ctx.save();
@@ -428,12 +614,42 @@ function desenharCorte(g, t) {
     cx = (rx + rw + 40 + W - 40) / 2 + (1 - entra) * 600;
     area = W - (rx + rw + 80);
   }
-  desenharRetrato(img, rx, ry, rw, rh, { borda: '#fff', larguraBorda: 6, raio: 20 });
+  // "soco" do retrato quando ele chega
+  const ps = t > 0.22 ? 1 + 0.14 * Math.exp(-(t - 0.22) * 9) : 1;
+  const pw = rw * ps, ph = rh * ps;
+  ctx.save();
+  ctx.shadowColor = e.cores[0];
+  ctx.shadowBlur = 40;
+  ctx.fillStyle = e.cores[0];
+  caminhoArredondado(rx + rw / 2 - pw / 2 - 6, ry + rh / 2 - ph / 2 - 6, pw + 12, ph + 12, 24);
+  ctx.fill();
+  ctx.restore();
+  desenharRetrato(img, rx + rw / 2 - pw / 2, ry + rh / 2 - ph / 2, pw, ph, { borda: '#fff', larguraBorda: 6, raio: 20 });
+
   const yNome = retrato ? cy - 20 : cy + 10;
-  texto(`${p.nome.toUpperCase()}  •  ESPECIAL`, cx, yNome - (retrato ? 92 : 96), { tam: retrato ? 30 : 30, fonte: FONTE_TITULO, alinha: 'center', cor: '#ffd166', maxW: area });
-  texto(e.nome.toUpperCase(), cx, yNome, { tam: retrato ? 92 : 104, fonte: FONTE_TITULO, alinha: 'center', cor: '#fff', contorno: '#10102a', espessura: 12, maxW: area });
-  if (e.frase && e.frase.trim()) {
-    texto(`“${e.frase.trim()}”`, cx, yNome + (retrato ? 70 : 74), { tam: retrato ? 40 : 42, alinha: 'center', cor: '#ffd166', maxW: area });
+  texto(`${p.nome.toUpperCase()}  •  ESPECIAL`, cx, yNome - (retrato ? 92 : 96), { tam: 30, fonte: FONTE_TITULO, alinha: 'center', cor: '#ffd166', maxW: area });
+
+  // nome do golpe chega grande e quica ("mola")
+  const kn = limitar((t - 0.2) / 0.5, 0, 1);
+  if (kn > 0) {
+    const z = 2.6 - 1.6 * elastico(kn), tam = retrato ? 92 : 104;
+    ctx.save();
+    ctx.globalAlpha *= limitar(kn * 5, 0, 1);
+    ctx.translate(cx, yNome);
+    ctx.rotate((1 - elastico(kn)) * -0.15);
+    ctx.scale(z, z);
+    texto(e.nome.toUpperCase(), 0, 0, { tam, fonte: FONTE_TITULO, alinha: 'center', cor: '#fff', contorno: e.cores[0], espessura: 28, sombra: false, maxW: area / z });
+    texto(e.nome.toUpperCase(), 0, 0, { tam, fonte: FONTE_TITULO, alinha: 'center', cor: '#fff', contorno: '#10102a', espessura: 12, maxW: area / z });
+    ctx.restore();
+  }
+
+  // frase "digitada" letra a letra
+  const frase = (e.frase || '').trim();
+  const nf = Math.floor((t - 0.6) * 45);
+  if (frase && nf > 0) {
+    const parte = [...frase].slice(0, nf).join('');
+    const pronta = parte.length >= frase.length;
+    texto(`“${parte}${pronta ? '”' : '▌'}`, cx, yNome + (retrato ? 70 : 74), { tam: retrato ? 40 : 42, alinha: 'center', cor: '#ffd166', maxW: area });
   }
   ctx.restore();
 }

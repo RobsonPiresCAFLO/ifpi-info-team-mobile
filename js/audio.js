@@ -225,6 +225,12 @@ const Som = (() => {
       ruido(0.3, { vol: 0.2, passaAlta: 1200 });
       setTimeout(() => (SONS_ESPECIAL[nome] || SONS_ESPECIAL.animado)(), 250);
     },
+    impacto: () => {                                                   // nome do golpe "batendo" na tela
+      tom(140, 0.45, { tipo: 'sine', vol: 0.35, ate: 35 });
+      ruido(0.3, { vol: 0.25 });
+      tom(hz(84), 0.18, { tipo: 'square', vol: 0.07 });
+    },
+    especialFim: () => arpejo([72, 76, 79, 84], 0.1, 0.06, { tipo: 'triangle', vol: 0.18 }),
     especialPronto: () => arpejo([72, 79, 84, 91], 0.14, 0.06, { tipo: 'sine', vol: 0.22 }),
     estouro: () => { tom(700, 0.12, { tipo: 'sine', vol: 0.18, ate: 120 }); ruido(0.08, { vol: 0.15 }); },
     ko: () => { tom(500, 1.0, { tipo: 'sawtooth', vol: 0.25, ate: 40 }); ruido(0.6, { vol: 0.3 }); },

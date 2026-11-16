@@ -500,9 +500,14 @@ const PODERES = [
   { id: 'relogio', texto: '⏱ +10 segundos' },
 ];
 
+// Palavras que caem: um peso extra para as do professor escolhido, sem deixar de usar as gerais.
 function palavraBoa() {
-  const proprias = prof().disciplinas;
-  return proprias.length && Math.random() < 0.6 ? sortear(proprias) : sortear(PALAVRAS_BOAS);
+  const proprias = prof().disciplinas || [];
+  return proprias.length && Math.random() < 0.7 ? sortear(proprias) : sortear(PALAVRAS_BOAS);
+}
+function palavraRuim() {
+  const proprias = prof().armadilhas || [];
+  return proprias.length && Math.random() < 0.4 ? sortear(proprias) : sortear(COISAS_RUINS);
 }
 
 function gerarItem() {
@@ -517,7 +522,7 @@ function gerarItem() {
     poder = p.id;
   } else if (r < 0.06 + pRuim && !(jogo.semRuins > 0)) {
     tipo = 'ruim';
-    texto = sortear(COISAS_RUINS);
+    texto = palavraRuim();
   } else {
     tipo = 'bom';
     texto = palavraBoa();
@@ -1342,11 +1347,31 @@ function desenharCena() {
   ctx.lineTo(W, CHAO + 2);
   ctx.stroke();
 
-  for (const it of j.itens) desenharItem(it);
-  if (j.golpe && j.golpe.e.some) ctx.globalAlpha = 0.12;   // golpes de invisibilidade
+  // no especial, itens, professor e efeitos são desenhados por cima do escurecimento (especial.js)
+  if (tela !== 'especial') {
+    for (const it of j.itens) desenharItem(it);
+    desenharJogador();
+    desenharEfeitos();
+  }
+  ctx.restore();
+
+  if (j.flash > 0) {
+    ctx.globalAlpha = j.flash * 2;
+    ctx.fillStyle = j.flashCor;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
+  }
+  desenharHUD();
+}
+
+function desenharJogador() {
+  if (jogo.golpe && jogo.golpe.e.some) ctx.globalAlpha = 0.12;   // golpes de invisibilidade
   desenharProfessor(escolhido, jogador.x, jogador.y, { dir: jogador.dir, anim: jogador.anim, noAr: !jogador.noChao, vy: jogador.vy, esticar: jogador.esticar, invul: jogador.invul, escalaP: escalaJogador() });
   ctx.globalAlpha = 1;
+}
 
+function desenharEfeitos() {
+  const j = jogo;
   for (const p of j.particulas) {
     ctx.globalAlpha = Math.max(0, p.vida / p.max);
     ctx.fillStyle = p.cor;
@@ -1368,15 +1393,6 @@ function desenharCena() {
     texto(t.texto, t.x, t.y, { tam: t.tam, fonte: FONTE_TITULO, alinha: 'center', cor: t.cor });
   }
   ctx.globalAlpha = 1;
-  ctx.restore();
-
-  if (j.flash > 0) {
-    ctx.globalAlpha = j.flash * 2;
-    ctx.fillStyle = j.flashCor;
-    ctx.fillRect(0, 0, W, H);
-    ctx.globalAlpha = 1;
-  }
-  desenharHUD();
 }
 
 function estrela(x, y, rExt, rInt) {

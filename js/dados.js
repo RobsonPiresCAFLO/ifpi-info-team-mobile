@@ -43,6 +43,9 @@
  *                 para fotos em que o rosto aparece pequeno. Padrão: [0.12, 0.03, 0.76]
  *   disciplinas → palavras "boas" que caem durante o jogo quando ele é escolhido.
  *                 Se ficar vazia, usa a lista geral PALAVRAS_BOAS.
+ *                 Peso: 70% das palavras boas vêm daqui; 30% da lista geral.
+ *   armadilhas  → itens VERMELHOS ligados ao professor (o que mais atrapalha na matéria dele).
+ *                 Peso: 40% dos vermelhos vêm daqui; 60% da lista geral COISAS_RUINS.
  *
  * Exemplo:
  *   titulo: 'O Arquiteto dos Dados',
@@ -58,6 +61,7 @@ const PROFESSORES = [
       'Matemática Computacional: resolve contas antes do compilador terminar',
     ],
     disciplinas: ['Pilha', 'Fila', 'Lista Encadeada', 'Árvore AVL', 'Grafos', 'Hash', 'Recursão', 'Big O', 'Ordenação', 'Mat. Computacional'],
+    armadilhas: ['Pilha estourou', 'Fila furada', 'Árvore torta', 'O(n²)', 'Recursão sem fim', 'Divisão por zero'],
   },
   {
     nome: 'Cicero Eduardo Walter', foto: 'assets/professores/Cicero Eduardo Walter_manga.jpg', cor: '#8d99ae',
@@ -69,6 +73,7 @@ const PROFESSORES = [
       'Mercado de Trabalho: prepara a turma para o mundo lá fora',
     ],
     disciplinas: ['Empreendedorismo', 'Ética', 'Cidadania', 'Plano de Negócios', 'Mercado', 'Produção', 'Gestão', 'Inovação', 'Carreira'],
+    armadilhas: ['Paper rejeitado', 'Sem referência', 'Sem DOI', 'Plágio', 'Prazo da revista', 'Sem plano'],
   },
   {
     nome: 'Elane Cristina', foto: 'assets/professores/Elane Cristina_manga.jpg', cor: '#3aa7ff',
@@ -78,6 +83,7 @@ const PROFESSORES = [
       'Algoritmos e Programação: transforma problemas em passo a passo',
     ],
     disciplinas: ['Algoritmos', 'Lógica', 'Variáveis', 'Se / Senão', 'Laço Para', 'Enquanto', 'Vetores', 'Funções', 'Fluxograma', 'Pseudocódigo'],
+    armadilhas: ['Erro de sintaxe', 'Não compila', 'Laço infinito', 'Variável sem valor', 'Senão sem Se', 'Índice fora do vetor'],
   },
   {
     nome: 'Francisco Eduardo', foto: 'assets/professores/Francisco Eduardo_manga.jpg', cor: '#e63946',
@@ -88,6 +94,7 @@ const PROFESSORES = [
       'Projeto Integrador: junta todas as disciplinas num só projeto',
     ],
     disciplinas: ['Sistemas Operacionais', 'Processos', 'Threads', 'Escalonamento', 'Memória', 'IHC', 'Usabilidade', 'Protótipo', 'Projeto Integrador'],
+    armadilhas: ['Deadlock', 'Kernel panic', 'Tela confusa', 'Botão escondido', 'Sem protótipo', 'Starvation'],
   },
   {
     nome: 'Jair Freitas', foto: 'assets/professores/Jair Freitas_manga.jpg', cor: '#8d0801',
@@ -98,6 +105,7 @@ const PROFESSORES = [
       'Ética e Profissionalismo: competências para o mercado de trabalho',
     ],
     disciplinas: ['Ética', 'Filosofia', 'Pensamento Crítico', 'Responsabilidade Social', 'Profissionalismo', 'Competências', 'Mercado de Trabalho', 'Informação', 'Cidadania', 'Sociedade'],
+    armadilhas: ['Fake news', 'Falácia', 'Achismo', 'Senso comum', 'Sofisma', 'Antiético'],
   },
   {
     nome: 'Justino', foto: 'assets/professores/Justino_manga.jpg', cor: '#2ec4b6',
@@ -108,6 +116,7 @@ const PROFESSORES = [
       'Programação Orientada a Objetos II e Tópicos Especiais em Programação',
     ],
     disciplinas: ['SQL', 'SELECT', 'JOIN', 'Modelo ER', 'Normalização', 'Chave Primária', 'TDD', 'Teste Unitário', 'POO', 'Herança'],
+    armadilhas: ['SELECT *', 'DELETE sem WHERE', 'Sem chave primária', 'Dado duplicado', 'Teste vermelho', 'Tabela sem índice'],
   },
   {
     nome: 'Leandro Rodrigues', foto: 'assets/professores/Leandro Rodrigues_manga.jpg', cor: '#5e548e',
@@ -119,6 +128,7 @@ const PROFESSORES = [
       'Doutor e PhD: orienta TCCs do problema à avaliação do artefato',
     ],
     disciplinas: ['Metodologia', 'Design Science', 'Artefato', 'Problema', 'Objetivos', 'Hipótese', 'Referencial Teórico', 'ABNT', 'Avaliação', 'Administração'],
+    armadilhas: ['Sem hipótese', 'Sem metodologia', 'Fora da ABNT', 'Referência perdida', 'Viés', 'Conclusão sem dados'],
   },
   {
     nome: 'Magno', foto: 'assets/professores/Magno_manga.jpg', cor: '#bc6c25', rosto: [0.28, 0.02, 0.42],
@@ -129,6 +139,7 @@ const PROFESSORES = [
       'Orientação de TCC: projetos que geram impacto na comunidade',
     ],
     disciplinas: ['Administração', 'Empreendedorismo', 'Liderança', 'Planejamento', 'Plano de Negócios', 'Gestão Pública', 'Marketing', 'Negociação', 'Comunidade', 'Projeto'],
+    armadilhas: ['Burocracia', 'Prejuízo', 'Sem planejamento', 'Reunião sem pauta', 'Falência', 'Sem liderança'],
   },
   {
     nome: 'Marcony Santana', foto: 'assets/professores/Marcony Santana_manga.jpg', cor: '#4361ee',
@@ -140,6 +151,7 @@ const PROFESSORES = [
       'Extensão Curricular: leva a TI para a comunidade',
     ],
     disciplinas: ['TCP/IP', 'Modelo OSI', 'Roteador', 'Switch', 'DNS', 'HTTP', 'Endereço IP', 'CPU', 'Memória RAM', 'Extensão'],
+    armadilhas: ['Ping 999 ms', 'IP duplicado', 'DNS fora', 'Cabo rompido', 'Pacote perdido', 'Loop de rede'],
   },
   {
     nome: 'Paulo Ferreira', foto: 'assets/professores/Paulo Ferreira_manga.jpg', cor: '#06a77d',
@@ -151,6 +163,7 @@ const PROFESSORES = [
       'Orientação de TCC: revisa o abstract e as referências internacionais',
     ],
     disciplinas: ['Reading', 'Vocabulary', 'Grammar', 'Cognatos', 'Skimming', 'Scanning', 'Abstract', 'Keywords', 'Documentation', 'Listening'],
+    armadilhas: ['Falso cognato', 'Tradutor literal', 'Typo', 'Sem vocabulário', 'Abstract errado', 'Pronúncia errada'],
   },
   {
     nome: 'Rafael Leite', foto: 'assets/professores/Rafael-Leite_manga.jpg', cor: '#22223b',
@@ -162,6 +175,7 @@ const PROFESSORES = [
       'Planejamento Extensionista e Curricularização da Extensão',
     ],
     disciplinas: ['Inovação', 'Startup', 'Logística', 'Processos', 'Pesquisa', 'Metodologia', 'Extensão', 'Gestão', 'Projeto'],
+    armadilhas: ['Pitch ruim', 'Sem MVP', 'Gargalo', 'Estoque parado', 'Ideia sem teste', 'Sem extensão'],
   },
   {
     nome: 'Rennê', foto: 'assets/professores/Rennê_manga.jpg', cor: '#6c757d',
@@ -173,6 +187,7 @@ const PROFESSORES = [
       'Fundamentos de Informática: a base para todo o resto',
     ],
     disciplinas: ['Mobile', 'Android', 'App', 'UML', 'Requisitos', 'Casos de Uso', 'TIC', 'Planilha', 'Eng. de Software'],
+    armadilhas: ['App travou', 'Requisito vago', 'Bateria 1%', 'Build falhou', 'Escopo infinito', 'Sem caso de uso'],
   },
   {
     nome: 'Robson Borges', foto: 'assets/professores/Robson Borges_manga.jpg', cor: '#3d348b',
@@ -184,6 +199,7 @@ const PROFESSORES = [
       'Prática e Gerência de Redes e Fundamentos de Redes e Internet',
     ],
     disciplinas: ['HTML', 'CSS', 'JavaScript', 'PHP', 'API REST', 'Back-End', 'MySQL', 'Stored Procedure', 'Servidor Web', 'Redes'],
+    armadilhas: ['Erro 500', 'CORS bloqueado', 'SQL Injection', 'undefined', 'Não testou', 'Senha em texto puro'],
   },
   {
     nome: 'Robson Freitas', foto: 'assets/professores/Robson Freitas_manga.jpg', cor: '#1d7874',
@@ -195,6 +211,7 @@ const PROFESSORES = [
       'Informática Aplicada à Eletromecânica',
     ],
     disciplinas: ['IA', 'Machine Learning', 'Rede Neural', 'Mobile', 'Front-End', 'React', 'Interface', 'Computação', 'Dataset'],
+    armadilhas: ['Overfitting', 'IA alucinando', 'Dataset sujo', 'Layout quebrado', 'Viés no modelo', 'Tela travada'],
   },
   {
     nome: 'Rogério Sousa', foto: 'assets/professores/Rogerio Sousa_manga.jpg', cor: '#7209b7',
@@ -206,6 +223,7 @@ const PROFESSORES = [
       'Orientação de TCC: põe números, gráficos e análise nos resultados',
     ],
     disciplinas: ['Limite', 'Derivada', 'Integral', 'Função', 'Média', 'Mediana', 'Desvio Padrão', 'Probabilidade', 'Amostra', 'Gráfico'],
+    armadilhas: ['Divisão por zero', 'Amostra viciada', 'Outlier', 'Sinal trocado', 'Limite indefinido', 'Média enganosa'],
   },
   {
     nome: 'Ronaldo Borges', foto: 'assets/professores/Ronaldo Borges_manga.jpg', cor: '#212529',
@@ -217,6 +235,7 @@ const PROFESSORES = [
       'Tópicos Especiais em Inovação',
     ],
     disciplinas: ['Classe', 'Objeto', 'Herança', 'Polimorfismo', 'Encapsulamento', 'IoT', 'Arduino', 'Sensores', 'Framework', 'Web'],
+    armadilhas: ['Classe Deus', 'Código espaguete', 'Sensor queimado', 'Curto-circuito', 'Herança confusa', 'Acoplamento'],
   },
   {
     nome: 'Silvino Marques', foto: 'assets/professores/Silvino Marques_manga.jpg', cor: '#f77f00',
@@ -227,6 +246,7 @@ const PROFESSORES = [
       'Infraestrutura Computacional e Suporte Técnico sempre de prontidão',
     ],
     disciplinas: ['Firewall', 'Criptografia', 'Backup', 'Antivírus', 'Senha Forte', 'Hardware', 'Placa-mãe', 'Formatação', 'Suporte'],
+    armadilhas: ['Phishing', 'Ransomware', 'Sem backup', 'HD queimado', 'Superaquecimento', 'Senha 123456'],
   },
   {
     nome: 'Taianni', foto: 'assets/professores/Taianni_manga.jpg', cor: '#9d4edd',
@@ -237,6 +257,7 @@ const PROFESSORES = [
       'Interpretação de Requisitos: lê nas entrelinhas o que o cliente quer',
     ],
     disciplinas: ['Gramática', 'Coesão', 'Coerência', 'Redação', 'Manual do Usuário', 'Documentação', 'Requisitos', 'Interpretação', 'Ortografia', 'Concordância'],
+    armadilhas: ['Erro de crase', 'Mas ou mais?', 'Vírgula errada', 'Ambiguidade', 'Texto sem coesão', 'Erro de concordância'],
   },
   {
     nome: 'Vanessa Veloso', foto: 'assets/professores/Vanessa Veloso_manga.jpg', cor: '#ff8fab',
@@ -246,6 +267,7 @@ const PROFESSORES = [
       'Análise e Projeto de Sistemas: modela tudo em UML',
     ],
     disciplinas: ['Requisitos', 'UML', 'Scrum', 'Kanban', 'Casos de Uso', 'Diagrama de Classes', 'Sprint', 'Git', 'Qualidade'],
+    armadilhas: ['Requisito mudou', 'Sprint atrasada', 'Escopo inflado', 'Card esquecido', 'Sem daily', 'Commit "ajustes"'],
   },
   {
     nome: 'Willamys Rangel', foto: 'assets/professores/Willamys Rangel_manga.jpg', cor: '#2b2d42',
@@ -254,6 +276,7 @@ const PROFESSORES = [
       'Tópicos Especiais em Programação: sempre com a tecnologia do momento',
     ],
     disciplinas: ['Framework', 'Git', 'API', 'Docker', 'Clean Code', 'Refatoração', 'Deploy', 'TypeScript', 'Node.js'],
+    armadilhas: ['Deploy quebrado', 'Código legado', 'Gambiarra', 'Dependência quebrada', 'node_modules', 'Merge conflict'],
   },
 ];
 
